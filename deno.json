@@ -1,0 +1,11 @@
+{
+  "tasks": {
+    "start": "deno run -A ./src/bot.ts",
+    "dev": "deno run -A --watch ./src/bot.ts"
+  },
+  "fmt": {
+    "options": {
+      "lineWidth": 140
+    }
+  }
+}
