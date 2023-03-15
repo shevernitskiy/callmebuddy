@@ -1,5 +1,3 @@
-// deno-lint-ignore no-unused-vars
-import { dotenv } from "../deps.ts";
 import { Bot, GrammyError, HttpError } from "../deps.ts";
 
 import { feedback } from "./command/feedback.ts";
