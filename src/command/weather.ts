@@ -30,7 +30,6 @@ function constructMenu(): Menu {
             const tmp = await ctx.reply("прогнозируем...");
             const html = await fetchMountain(key_mountain, alt);
             const post = parseHtmlToMessage(html);
-            // ctx.menu.close();
             ctx.reply(`${mountain.name} | el. ${alt}\n${post}`, { parse_mode: "HTML" }).finally(() =>
               ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id)
             );

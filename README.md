@@ -1,6 +1,7 @@
 # callmebuddy
 
-This is telegram bot hosted on deno deploy. Made with awesome [grammy](https://grammy.dev/) framework.
+This is telegram bot ([@callmebuddy](https://t.me/callmebuddy_bot)) hosted on deno deploy. Made with awesome [grammy](https://grammy.dev/)
+framework.
 
 It provides two different commands:
 
