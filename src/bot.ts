@@ -8,7 +8,7 @@ import { weather } from "./command/weather.ts";
 
 console.log("Start bot...");
 
-const bot = new Bot(Deno.env.get("TOKEN")!);
+export const bot = new Bot(Deno.env.get("TOKEN")!);
 
 bot.use(feedback);
 bot.use(cams);
@@ -26,4 +26,4 @@ bot.catch((err) => {
   }
 });
 
-bot.start();
+// bot.start();
