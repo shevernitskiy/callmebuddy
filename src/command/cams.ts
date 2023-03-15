@@ -1,25 +1,14 @@
 // deno-lint-ignore-file no-explicit-any
 import { CommandContext, Composer, Context, DOMParser, InputFile } from "../../deps.ts";
 
-export const cams = new Composer();
+import sources from "../data/cams.json" assert { type: "json" };
 
-const sources = [
-  ["8krA7Nsa", "Гарабаши на трассу"],
-  ["4GKhyfDN", "Гарабаши на Эльбрус"],
-  ["zFSFdEQS", "Гарабаши на ГКХ"],
-  ["588Kn9e7", "Мир на Эльбрус"],
-  ["8fiQkZde", "Ледник Азау"],
-  ["brBD8e2R", "Мир поляна"],
-  ["iBTnfkh8", "Мир-Кругозор"],
-  ["r9iGt7h6", "Кругозор-Азау 1"],
-  ["r8KnDd7G", "Кругозор-Азау 2"],
-  ["HhQEs4k3", "Азау выкат"],
-];
+export const cams = new Composer();
 
 cams.command("cam", async (ctx) => {
   try {
     const tmp = await ctx.reply("фотографигуем...");
-    const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item[0]}/`)));
+    const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item.code}/`)));
     const htmls = await Promise.all(responses.map((item) => item.text()));
 
     const out: any[] = [];
@@ -31,7 +20,7 @@ cams.command("cam", async (ctx) => {
 
       out.push({
         media: new InputFile(blob),
-        caption: sources[index][1],
+        caption: sources[index].name,
         type: "photo",
       });
     }
