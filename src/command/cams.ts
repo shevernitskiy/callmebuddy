@@ -16,7 +16,7 @@ const sources = [
   ["HhQEs4k3", "Азау выкат"],
 ];
 
-cams.command("cams", async (ctx) => {
+cams.command("cam", async (ctx) => {
   try {
     const tmp = await ctx.reply("фотографигуем...");
     const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item[0]}/`)));
