@@ -1,5 +1,4 @@
-// deno-lint-ignore-file no-explicit-any
-import { CommandContext, Composer, Context, DOMParser, InputFile } from "../../deps.ts";
+import { CommandContext, Composer, Context, DOMParser, InputFile, InputMediaPhoto } from "../../deps.ts";
 
 import sources from "../data/cams.json" assert { type: "json" };
 
@@ -11,7 +10,7 @@ cams.command("cam", async (ctx) => {
     const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item.code}/`)));
     const htmls = await Promise.all(responses.map((item) => item.text()));
 
-    const out: any[] = [];
+    const out: InputMediaPhoto<InputFile>[] = [];
 
     for (const [index, html] of htmls.entries()) {
       const blob = await fetchToBlob(html);
@@ -49,7 +48,7 @@ async function fetchToBlob(html: string): Promise<Blob | undefined> {
   }
 }
 
-async function replyWithPost(ctx: CommandContext<Context>, out: any[]): Promise<void> {
+async function replyWithPost(ctx: CommandContext<Context>, out: InputMediaPhoto<InputFile>[]): Promise<void> {
   try {
     if (out.length > 0) {
       console.log(`Cams, id: ${ctx.msg!.from?.id}`);
