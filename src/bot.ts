@@ -1,16 +1,16 @@
 import { Bot, GrammyError, HttpError } from "../deps.ts";
 
-import { feedback } from "./command/feedback.ts";
-import { cams } from "./command/cams.ts";
-import { weather } from "./command/weather.ts";
+import { CommandFeedback } from "./command/feedback.ts";
+import { CommandCams } from "./command/cams.ts";
+import { CommandWeather } from "./command/weather.ts";
 
 console.log("Start bot...");
 
 export const bot = new Bot(Deno.env.get("TOKEN")!);
 
-bot.use(feedback);
-bot.use(cams);
-bot.use(weather);
+bot.use(CommandFeedback);
+bot.use(CommandCams);
+bot.use(CommandWeather);
 
 bot.catch((err) => {
   console.error(`Error while handling update ${err.ctx.update.update_id}:`);

@@ -2,9 +2,10 @@ import { CommandContext, Composer, Context, DOMParser, InputFile, InputMediaPhot
 
 import sources from "../data/cams.json" assert { type: "json" };
 
-export const cams = new Composer();
+const bot = new Composer();
+export { bot as CommandCams };
 
-cams.command("cam", async (ctx) => {
+bot.command("cam", async (ctx) => {
   try {
     const tmp = await ctx.reply("фотографигуем...");
     const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item.code}/`)));

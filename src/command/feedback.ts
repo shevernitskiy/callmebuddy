@@ -1,7 +1,8 @@
 import { Composer } from "../../deps.ts";
 
-export const feedback = new Composer();
+const bot = new Composer();
+export { bot as CommandFeedback };
 
-feedback.command("feedback", async (ctx) => {
+bot.command("feedback", async (ctx) => {
   await ctx.reply("если хотите добавить гору, напишите - @shevernitskiy");
 });

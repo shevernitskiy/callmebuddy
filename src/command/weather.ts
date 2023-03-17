@@ -2,12 +2,13 @@ import { Composer, DOMParser, Element, HTMLDocument, Menu } from "../../deps.ts"
 
 import mountains from "../data/mountains.json" assert { type: "json" };
 
-export const weather = new Composer();
+const bot = new Composer();
+export { bot as CommandWeather };
 
 const weather_menu = constructMenu();
-weather.use(weather_menu);
+bot.use(weather_menu);
 
-weather.command("weather", (ctx) => {
+bot.command("weather", (ctx) => {
   ctx.reply("Регионы", { reply_markup: weather_menu });
 });
 
