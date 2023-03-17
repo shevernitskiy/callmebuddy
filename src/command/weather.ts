@@ -3,7 +3,6 @@ import { Composer, DOMParser, Element, HTMLDocument, Menu } from "../../deps.ts"
 import mountains from "../data/mountains.json" assert { type: "json" };
 
 const bot = new Composer();
-export { bot as CommandWeather };
 
 const weather_menu = constructMenu();
 bot.use(weather_menu);
@@ -37,15 +36,18 @@ function constructMenu(): Menu {
           })
           .row();
       }
+      mountain_menu.back("⬅️ назад", (ctx) => ctx.editMessageText(`Горы региона ${region.name}`));
 
       mountain_menus.push(mountain_menu);
       region_menu.submenu(mountain.name, `mountain_${key_mountain}`, (ctx) => ctx.editMessageText(`Высоты горы ${mountain.name}`)).row();
     }
 
+    region_menu.back("⬅️ назад", (ctx) => ctx.editMessageText(`Регионы`));
     region_menu.register(mountain_menus);
     regions_menus.push(region_menu);
     weather_menu.submenu(region.name, `region_${key_region}`, (ctx) => ctx.editMessageText(`Горы региона ${region.name}`)).row();
   }
+  weather_menu.text("🚫 закрыть", (ctx) => ctx.deleteMessage());
   weather_menu.register(regions_menus);
 
   return weather_menu;
@@ -59,8 +61,6 @@ async function fetchMountain(mountain: string, alt: number): Promise<string> {
 function parseHtmlToMessage(html: string): string {
   // deno-lint-ignore no-explicit-any
   const obj: any = [];
-  const msg: string[] = [];
-
   const dom = new DOMParser().parseFromString(html, "text/html") as HTMLDocument;
 
   for (let i = 0; i < domLength(dom, "tr.forecast__table-time td.forecast__table-time-item") - 1; i++) {
@@ -86,7 +86,10 @@ function parseHtmlToMessage(html: string): string {
   for (let i = 0; i < domLength(dom, "tr.forecast__table-summary td") - 1; i++) {
     obj[i].summary = domItemText(dom, "tr.forecast__table-summary td", i);
   }
+
   let target = 0;
+  const msg: string[] = [];
+
   for (let i = 0; i < domLength(dom, "td.forecast__table-days-item") - 1; i++) {
     msg.push("------------------------------");
     msg.push(domItemText(dom, "td.forecast__table-days-item", i).split("\n").join(" ").replace("                  ", " "));
@@ -128,3 +131,5 @@ function domItemText(dom: HTMLDocument, selector: string, item: number): string 
 function domItemAttr(dom: HTMLDocument, selector: string, item: number, attr: string): string {
   return (dom.querySelectorAll(selector).item(item) as Element).getAttribute(attr) as string;
 }
+
+export { bot as CommandWeather };

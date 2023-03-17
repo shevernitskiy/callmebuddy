@@ -3,30 +3,14 @@ import { CommandContext, Composer, Context, DOMParser, InputFile, InputMediaPhot
 import sources from "../data/cams.json" assert { type: "json" };
 
 const bot = new Composer();
-export { bot as CommandCams };
 
 bot.command("cam", async (ctx) => {
   try {
     const tmp = await ctx.reply("фотографигуем...");
-    const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item.code}/`)));
-    const htmls = await Promise.all(responses.map((item) => item.text()));
+    const media = await getInputMeadias(sources);
 
-    const out: InputMediaPhoto<InputFile>[] = [];
-
-    for (const [index, html] of htmls.entries()) {
-      const blob = await fetchToBlob(html);
-
-      if (blob === undefined) return;
-
-      out.push({
-        media: new InputFile(blob),
-        caption: sources[index].name,
-        type: "photo",
-      });
-    }
-
-    if (out.length > 0) {
-      await replyWithPost(ctx, out);
+    if (media.length > 0) {
+      await replyWithPost(ctx, media);
     } else {
       await ctx.reply("камеры оффлайн...");
     }
@@ -36,6 +20,26 @@ bot.command("cam", async (ctx) => {
     console.log(err);
   }
 });
+
+async function getInputMeadias(sources: { code: string; name: string }[]): Promise<InputMediaPhoto<InputFile>[]> {
+  const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item.code}/`)));
+  const htmls = await Promise.all(responses.map((item) => item.text()));
+  const out: InputMediaPhoto<InputFile>[] = [];
+
+  for (const [index, html] of htmls.entries()) {
+    const blob = await fetchToBlob(html);
+
+    if (blob === undefined) continue;
+
+    out.push({
+      media: new InputFile(blob),
+      caption: sources[index].name,
+      type: "photo",
+    });
+  }
+
+  return out;
+}
 
 async function fetchToBlob(html: string): Promise<Blob | undefined> {
   try {
@@ -61,3 +65,5 @@ async function replyWithPost(ctx: CommandContext<Context>, out: InputMediaPhoto<
     throw (err);
   }
 }
+
+export { bot as CommandCams };
