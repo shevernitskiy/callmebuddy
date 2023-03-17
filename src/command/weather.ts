@@ -27,7 +27,7 @@ function constructMenu(): Menu {
         mountain_menu
           .text(`${alt}м`, async (ctx) => {
             ctx.deleteMessage();
-            console.log(`Weather, id: ${ctx.msg!.from?.id}, mountain: ${key_mountain}, alt: ${alt}`);
+            console.log(`Weather, id: ${ctx.from?.id}, mountain: ${key_mountain}, alt: ${alt}`);
             const tmp = await ctx.reply("прогнозируем...");
             const html = await fetchMountain(key_mountain, alt);
             const post = parseHtmlToMessage(html);
