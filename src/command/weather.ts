@@ -15,14 +15,16 @@ function constructMenu(): Menu {
   const weather_menu = new Menu("regions");
   const regions_menus: Menu[] = [];
 
+  let i = 0;
   for (const [key_region, region] of Object.entries(mountains)) {
     const region_menu = new Menu(`region_${key_region}`);
     const mountain_menus: Menu[] = [];
 
+    let k = 0;
     for (const [key_mountain, mountain] of Object.entries(region.value)) {
       const mountain_menu = new Menu(`mountain_${key_mountain}`);
 
-      for (const alt of mountain.value) {
+      for (const [index, alt] of mountain.value.entries()) {
         mountain_menu
           .text(`${alt}м`, async (ctx) => {
             ctx.deleteMessage();
@@ -33,20 +35,44 @@ function constructMenu(): Menu {
             ctx.reply(`${mountain.name} | el. ${alt}\n${post}`, { parse_mode: "HTML" }).finally(() =>
               ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id)
             );
-          })
-          .row();
+          });
+
+        if (index % 2 !== 0 && index !== 0) {
+          mountain_menu.row();
+        }
       }
+      mountain_menu.row();
       mountain_menu.back("⬅️ назад", (ctx) => ctx.editMessageText(`Горы региона ${region.name}`));
+      mountain_menu.back("🚫 закрыть", async (ctx) => {
+        await ctx.menu.close({ immediate: true });
+        ctx.deleteMessage();
+      });
 
       mountain_menus.push(mountain_menu);
-      region_menu.submenu(mountain.name, `mountain_${key_mountain}`, (ctx) => ctx.editMessageText(`Высоты горы ${mountain.name}`)).row();
+      region_menu.submenu(mountain.name, `mountain_${key_mountain}`, (ctx) => ctx.editMessageText(`Высоты горы ${mountain.name}`));
+      if (k % 2 !== 0 && k !== 0) {
+        region_menu.row();
+      }
+      k++;
     }
 
+    region_menu.row();
     region_menu.back("⬅️ назад", (ctx) => ctx.editMessageText(`Регионы`));
+    region_menu.back("🚫 закрыть", async (ctx) => {
+      await ctx.menu.close({ immediate: true });
+      ctx.deleteMessage();
+    });
+
     region_menu.register(mountain_menus);
     regions_menus.push(region_menu);
-    weather_menu.submenu(region.name, `region_${key_region}`, (ctx) => ctx.editMessageText(`Горы региона ${region.name}`)).row();
+    weather_menu.submenu(region.name, `region_${key_region}`, (ctx) => ctx.editMessageText(`Горы региона ${region.name}`));
+    if (i % 2 !== 0 && i !== 0) {
+      weather_menu.row();
+    }
+    i++;
   }
+
+  weather_menu.row();
   weather_menu.text("🚫 закрыть", (ctx) => ctx.deleteMessage());
   weather_menu.register(regions_menus);
 
