@@ -1,6 +1,17 @@
-import { Composer, DOMParser, Element, HTMLDocument, Menu } from "../../deps.ts";
+import { Composer, DOMParser, Element, Menu } from "../../deps.ts";
 
 import mountains from "../data/mountains.json" assert { type: "json" };
+
+type WeatherData = {
+  day: string;
+  time: string;
+  temp: number;
+  wind_dir: string;
+  wind_speed: number;
+  snow: number;
+  rain: number;
+  summary: string;
+};
 
 const bot = new Composer();
 
@@ -30,9 +41,10 @@ function constructMenu(): Menu {
             ctx.deleteMessage();
             console.log(`Weather, id: ${ctx.from?.id}, mountain: ${key_mountain}, alt: ${alt}`);
             const tmp = await ctx.reply("прогнозируем...");
-            const html = await fetchMountain(key_mountain, alt);
-            const post = parseHtmlToMessage(html);
-            ctx.reply(`${mountain.name} | el. ${alt}\n${post}`, { parse_mode: "HTML" }).finally(() =>
+            const html = await fetchMountainHtml(key_mountain, alt);
+            const data = parseHtml(html);
+            const message = formMessage(data);
+            ctx.reply(`<code>${mountain.name} | el. ${alt}\n${message}</code>`, { parse_mode: "HTML" }).finally(() =>
               ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id)
             );
           });
@@ -79,83 +91,78 @@ function constructMenu(): Menu {
   return weather_menu;
 }
 
-async function fetchMountain(mountain: string, alt: number): Promise<string> {
+async function fetchMountainHtml(mountain: string, alt: number): Promise<string> {
   const res = await fetch(`https://www.mountain-forecast.com/peaks/${mountain}/forecasts/data?elev=all&period_types=p,t,h`);
   return (await res.json()).elevations[alt].period_types.t.table as string;
 }
 
-function parseHtmlToMessage(html: string): string {
-  // deno-lint-ignore no-explicit-any
-  const obj: any = [];
-  const dom = new DOMParser().parseFromString(html, "text/html") as HTMLDocument;
+function parseHtml(html: string): WeatherData[] {
+  const dom = new DOMParser().parseFromString(html, "text/html")!;
 
-  for (let i = 0; i < domLength(dom, "tr.forecast__table-time td.forecast__table-time-item") - 1; i++) {
-    obj.push({ time: domItemText(dom, "tr.forecast__table-time span.forecast__table-value", i) });
+  const out: WeatherData[] = [];
+
+  const days = dom.querySelectorAll("td.forecast__table-days-item");
+  const time = dom.querySelectorAll("tr.forecast__table-time span.forecast__table-value");
+  const temp = dom.querySelectorAll("tr.forecast__table-max-temperature span.temp");
+  const wind_dir = dom.querySelectorAll("tr.forecast__table-wind div.wind-icon__tooltip");
+  const wind_speed = dom.querySelectorAll("tr.forecast__table-wind text");
+  const snow = dom.querySelectorAll("tr.forecast__table-snow span.snow");
+  const rain = dom.querySelectorAll("tr.forecast__table-rain span.rain");
+  const summary = dom.querySelectorAll("tr.forecast__table-summary td");
+
+  for (let i = 0; i < time.length; i++) {
+    out.push({
+      day: "",
+      time: time.item(i).textContent.trim().replace(" AM", "am").replace(" PM", "pm"),
+      temp: Number(temp.item(i).textContent.trim()),
+      wind_dir: wind_dir.item(i).textContent.trim(),
+      wind_speed: Number(wind_speed.item(i).textContent.trim()),
+      snow: Number(snow.item(i).textContent.trim().replaceAll("-", "0")),
+      rain: Number(rain.item(i).textContent.trim().replaceAll("-", "0")),
+      summary: summary.item(i).textContent.trim(),
+    });
   }
-  for (let i = 0; i < domLength(dom, "tr.forecast__table-max-temperature span.temp") - 1; i++) {
-    obj[i].temp = domItemText(dom, "tr.forecast__table-max-temperature span.temp", i);
-  }
-  for (let i = 0; i < domLength(dom, "tr.forecast__table-wind div.wind-icon__tooltip") - 1; i++) {
-    obj[i].wind_dir = domItemText(dom, "tr.forecast__table-wind div.wind-icon__tooltip", i);
-  }
-  for (let i = 0; i < domLength(dom, "tr.forecast__table-wind text") - 1; i++) {
-    obj[i].wind_speed = domItemText(dom, "tr.forecast__table-wind text", i);
-  }
-  for (let i = 0; i < domLength(dom, "tr.forecast__table-snow span.snow") - 1; i++) {
-    obj[i].mm = domItemText(dom, "tr.forecast__table-snow span.snow", i).split("-").join("0");
-  }
-  for (let i = 0; i < domLength(dom, "tr.forecast__table-rain span.rain") - 1; i++) {
-    if (parseInt(domItemText(dom, "tr.forecast__table-rain span.rain", i)) > parseInt(obj[i].mm.replaceAll("-", 0))) {
-      obj[i].mm = domItemText(dom, "tr.forecast__table-rain span.rain", i).split("-").join("0");
+
+  let k = 0;
+  for (let i = 0; i < days.length; i++) {
+    const day = days.item(i);
+    for (let j = 0; j < Number((day as Element).getAttribute("colspan")); j++) {
+      out[k].day = day.textContent.trim().replaceAll("\n        ", " ").replaceAll("  ", " ");
+      k++;
     }
   }
-  for (let i = 0; i < domLength(dom, "tr.forecast__table-summary td") - 1; i++) {
-    obj[i].summary = domItemText(dom, "tr.forecast__table-summary td", i);
-  }
 
-  let target = 0;
+  return out;
+}
+
+function formMessage(data: WeatherData[]): string {
   const msg: string[] = [];
+  let day = "";
 
-  for (let i = 0; i < domLength(dom, "td.forecast__table-days-item") - 1; i++) {
-    msg.push("------------------------------");
-    msg.push(domItemText(dom, "td.forecast__table-days-item", i).split("\n").join(" ").replace("                  ", " "));
-    for (let k = 0; k < parseInt(domItemAttr(dom, "td.forecast__table-days-item", i, "colspan")); k++) {
-      msg.push(
-        `${`0${obj[target].time}`.substr(-5).replace(" ", "").replace("AM", "am").replace("PM", "pm")}|${
-          `${obj[target].temp}°C`.padEnd(
-            5,
-            " ",
-          )
-        }|${`${obj[target].wind_speed} ${obj[target].wind_dir}`.padEnd(6, " ")}|${
-          `${obj[target].mm}mm`
-            .padEnd(4, " ")
-            .replace("-", "0")
-        }|${
-          `${obj[target].summary}`
-            .replace("shwrs", "shwr")
-            .replace("some", "")
-            .replace("light", "lt")
-            .replace("heavy", "hvy")
-            .replace("storm", "stm")
-            .trim()
-        }`,
-      );
-      target++;
+  for (const item of data) {
+    if (day !== item.day) {
+      day = item.day;
+      msg.push("------------------------------", item.day);
     }
+    let str = item.time.padStart(4, "0") + "|";
+    str += ((item.temp > 0 ? "+" : "") + (item.temp === 0 ? " " : "") + item.temp).padEnd(3, " ") + "°C|";
+    str += item.wind_speed.toString().padEnd(3, " ") + item.wind_dir.padEnd(3, " ") + "|";
+    str += (item.snow > item.rain ? item.snow : item.rain).toString().padEnd(2, " ") + "mm|";
+    str += summaryMinify(item.summary);
+    msg.push(str);
   }
-  return `<code>${msg.join("\n")}</code>`;
+
+  return msg.join("\n");
 }
 
-function domLength(dom: HTMLDocument, selector: string): number {
-  return dom.querySelectorAll(selector).length;
-}
-
-function domItemText(dom: HTMLDocument, selector: string, item: number): string {
-  return dom.querySelectorAll(selector).item(item).textContent.trim();
-}
-
-function domItemAttr(dom: HTMLDocument, selector: string, item: number, attr: string): string {
-  return (dom.querySelectorAll(selector).item(item) as Element).getAttribute(attr) as string;
+function summaryMinify(value: string): string {
+  return value
+    .replace("shwrs", "shwr")
+    .replace("some", "")
+    .replace("light", "lt")
+    .replace("heavy", "hvy")
+    .replace("storm", "stm")
+    .trim();
 }
 
 export { bot as CommandWeather };
