@@ -1,4 +1,4 @@
-import { Bot, GrammyError, HttpError } from "../deps.ts";
+import { Bot, Context, freeStorage, GrammyError, HttpError, session, SessionFlavor } from "../deps.ts";
 
 import { CommandFeedback } from "./command/feedback.ts";
 import { CommandCams } from "./command/cams.ts";
@@ -6,7 +6,22 @@ import { CommandWeather } from "./command/weather.ts";
 
 console.log("Start bot...");
 
-export const bot = new Bot(Deno.env.get("TOKEN")!);
+type SessionData = {
+  last_weather?: {
+    key: string;
+    name: string;
+    alt: number;
+  };
+};
+
+export type SessionContext = Context & SessionFlavor<SessionData>;
+
+export const bot = new Bot<SessionContext>(Deno.env.get("TOKEN")!);
+
+bot.use(session({
+  initial: () => ({}),
+  storage: freeStorage<SessionData>(bot.token),
+}));
 
 bot.use(CommandFeedback);
 bot.use(CommandCams);

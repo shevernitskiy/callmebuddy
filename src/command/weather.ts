@@ -1,5 +1,7 @@
 import { Composer, DOMParser, Element, Menu } from "../../deps.ts";
 
+import { SessionContext } from "../bot.ts";
+
 import mountains from "../data/mountains.json" assert { type: "json" };
 
 type WeatherData = {
@@ -13,7 +15,7 @@ type WeatherData = {
   summary: string;
 };
 
-const bot = new Composer();
+const bot = new Composer<SessionContext>();
 
 const weather_menu = constructMenu();
 bot.use(weather_menu);
@@ -22,18 +24,32 @@ bot.command("weather", (ctx) => {
   ctx.reply("Регионы", { reply_markup: weather_menu });
 });
 
-function constructMenu(): Menu {
-  const weather_menu = new Menu("regions");
-  const regions_menus: Menu[] = [];
+function constructMenu(): Menu<SessionContext> {
+  const weather_menu = new Menu<SessionContext>("regions");
+  const regions_menus: Menu<SessionContext>[] = [];
+
+  weather_menu.dynamic((ctx, range) => {
+    if (ctx.session.last_weather === undefined) return;
+    range.text(`${ctx.session.last_weather.name}, ${ctx.session.last_weather.alt}м`, async (ctx) => {
+      ctx.deleteMessage();
+      console.log(`Weather, id: ${ctx.from?.id}, mountain: ${ctx.session.last_weather?.key}, alt: ${ctx.session.last_weather?.alt}`);
+      const tmp = await ctx.reply("прогнозируем...");
+      const html = await fetchMountainHtml(ctx.session.last_weather?.key!, ctx.session.last_weather?.alt!);
+      const data = parseHtml(html);
+      const message = formMessage(data);
+      ctx.reply(`<code>${ctx.session.last_weather?.name} | el. ${ctx.session.last_weather?.alt}\n${message}</code>`, { parse_mode: "HTML" })
+        .finally(() => ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id));
+    }).row();
+  });
 
   let i = 0;
   for (const [key_region, region] of Object.entries(mountains)) {
-    const region_menu = new Menu(`region_${key_region}`);
-    const mountain_menus: Menu[] = [];
+    const region_menu = new Menu<SessionContext>(`region_${key_region}`);
+    const mountain_menus: Menu<SessionContext>[] = [];
 
     let k = 0;
     for (const [key_mountain, mountain] of Object.entries(region.value)) {
-      const mountain_menu = new Menu(`mountain_${key_mountain}`);
+      const mountain_menu = new Menu<SessionContext>(`mountain_${key_mountain}`);
 
       for (const [index, alt] of mountain.value.entries()) {
         mountain_menu
@@ -47,6 +63,11 @@ function constructMenu(): Menu {
             ctx.reply(`<code>${mountain.name} | el. ${alt}\n${message}</code>`, { parse_mode: "HTML" }).finally(() =>
               ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id)
             );
+            ctx.session.last_weather = {
+              key: key_mountain,
+              name: mountain.name,
+              alt: alt,
+            };
           });
 
         if (index % 2 !== 0 && index !== 0) {
