@@ -32,12 +32,16 @@ function constructMenu(): Menu<SessionContext> {
     if (ctx.session.last_weather === undefined) return;
     range.text(`${ctx.session.last_weather.name}, ${ctx.session.last_weather.alt}м`, async (ctx) => {
       ctx.deleteMessage();
-      console.log(`Weather, id: ${ctx.from?.id}, mountain: ${ctx.session.last_weather?.key}, alt: ${ctx.session.last_weather?.alt}`);
+      console.log(
+        `Weather, id: ${ctx.from?.id}, mountain: ${ctx.session.last_weather?.key}, alt: ${ctx.session.last_weather?.alt}`,
+      );
       const tmp = await ctx.reply("прогнозируем...");
       const html = await fetchMountainHtml(ctx.session.last_weather?.key!, ctx.session.last_weather?.alt!);
       const data = parseHtml(html);
       const message = formMessage(data);
-      ctx.reply(`<code>${ctx.session.last_weather?.name} | el. ${ctx.session.last_weather?.alt}\n${message}</code>`, { parse_mode: "HTML" })
+      ctx.reply(`<code>${ctx.session.last_weather?.name} | el. ${ctx.session.last_weather?.alt}\n${message}</code>`, {
+        parse_mode: "HTML",
+      })
         .finally(() => ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id));
     }).row();
   });
@@ -82,7 +86,11 @@ function constructMenu(): Menu<SessionContext> {
       });
 
       mountain_menus.push(mountain_menu);
-      region_menu.submenu(mountain.name, `mountain_${key_mountain}`, (ctx) => ctx.editMessageText(`Высоты горы ${mountain.name}`));
+      region_menu.submenu(
+        mountain.name,
+        `mountain_${key_mountain}`,
+        (ctx) => ctx.editMessageText(`Высоты горы ${mountain.name}`),
+      );
       if (k % 2 !== 0 && k !== 0) {
         region_menu.row();
       }
@@ -98,7 +106,11 @@ function constructMenu(): Menu<SessionContext> {
 
     region_menu.register(mountain_menus);
     regions_menus.push(region_menu);
-    weather_menu.submenu(region.name, `region_${key_region}`, (ctx) => ctx.editMessageText(`Горы региона ${region.name}`));
+    weather_menu.submenu(
+      region.name,
+      `region_${key_region}`,
+      (ctx) => ctx.editMessageText(`Горы региона ${region.name}`),
+    );
     if (i % 2 !== 0 && i !== 0) {
       weather_menu.row();
     }
@@ -113,7 +125,9 @@ function constructMenu(): Menu<SessionContext> {
 }
 
 async function fetchMountainHtml(mountain: string, alt: number): Promise<string> {
-  const res = await fetch(`https://www.mountain-forecast.com/peaks/${mountain}/forecasts/data?elev=all&period_types=p,t,h`);
+  const res = await fetch(
+    `https://www.mountain-forecast.com/peaks/${mountain}/forecasts/data?elev=all&period_types=p,t,h`,
+  );
   return (await res.json()).elevations[alt].period_types.t.table as string;
 }
 
