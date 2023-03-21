@@ -36,12 +36,15 @@ function constructMenu(): Menu<SessionContext> {
         `Weather, id: ${ctx.from?.id}, mountain: ${ctx.session.last_weather?.key}, alt: ${ctx.session.last_weather?.alt}`,
       );
       const tmp = await ctx.reply("прогнозируем...");
-      const html = await fetchMountainHtml(ctx.session.last_weather?.key!, ctx.session.last_weather?.alt!);
-      const data = parseHtml(html);
-      const message = formMessage(data);
-      ctx.reply(`<code>${ctx.session.last_weather?.name} | el. ${ctx.session.last_weather?.alt}\n${message}</code>`, {
-        parse_mode: "HTML",
-      })
+      ctx.reply(
+        `<code>${ctx.session.last_weather?.name} | el. ${ctx.session.last_weather?.alt}\n${await forecastForMountain(
+          ctx.session.last_weather?.key!,
+          ctx.session.last_weather?.alt!,
+        )}</code>`,
+        {
+          parse_mode: "HTML",
+        },
+      )
         .finally(() => ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id));
     }).row();
   });
@@ -61,12 +64,9 @@ function constructMenu(): Menu<SessionContext> {
             ctx.deleteMessage();
             console.log(`Weather, id: ${ctx.from?.id}, mountain: ${key_mountain}, alt: ${alt}`);
             const tmp = await ctx.reply("прогнозируем...");
-            const html = await fetchMountainHtml(key_mountain, alt);
-            const data = parseHtml(html);
-            const message = formMessage(data);
-            ctx.reply(`<code>${mountain.name} | el. ${alt}\n${message}</code>`, { parse_mode: "HTML" }).finally(() =>
-              ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id)
-            );
+            ctx.reply(`<code>${mountain.name} | el. ${alt}\n${await forecastForMountain(key_mountain, alt)}</code>`, {
+              parse_mode: "HTML",
+            }).finally(() => ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id));
             ctx.session.last_weather = {
               key: key_mountain,
               name: mountain.name,
@@ -78,13 +78,8 @@ function constructMenu(): Menu<SessionContext> {
           mountain_menu.row();
         }
       }
-      mountain_menu.row();
-      mountain_menu.back("⬅️ назад", (ctx) => ctx.editMessageText(`Горы региона ${region.name}`));
-      mountain_menu.back("🚫 закрыть", async (ctx) => {
-        await ctx.menu.close({ immediate: true });
-        ctx.deleteMessage();
-      });
 
+      addNav(mountain_menu);
       mountain_menus.push(mountain_menu);
       region_menu.submenu(
         mountain.name,
@@ -97,13 +92,7 @@ function constructMenu(): Menu<SessionContext> {
       k++;
     }
 
-    region_menu.row();
-    region_menu.back("⬅️ назад", (ctx) => ctx.editMessageText(`Регионы`));
-    region_menu.back("🚫 закрыть", async (ctx) => {
-      await ctx.menu.close({ immediate: true });
-      ctx.deleteMessage();
-    });
-
+    addNav(region_menu);
     region_menu.register(mountain_menus);
     regions_menus.push(region_menu);
     weather_menu.submenu(
@@ -122,6 +111,23 @@ function constructMenu(): Menu<SessionContext> {
   weather_menu.register(regions_menus);
 
   return weather_menu;
+}
+
+function addNav(menu: Menu<SessionContext>): Menu<SessionContext> {
+  return menu
+    .row()
+    .back("⬅️ назад", (ctx) => ctx.editMessageText(`Регионы`))
+    .back("🚫 закрыть", async (ctx) => {
+      await ctx.menu.close({ immediate: true });
+      ctx.deleteMessage();
+    });
+}
+
+async function forecastForMountain(mountain: string, alt: number): Promise<string> {
+  const html = await fetchMountainHtml(mountain, alt);
+  const data = parseHtml(html);
+  const message = formMessage(data);
+  return message;
 }
 
 async function fetchMountainHtml(mountain: string, alt: number): Promise<string> {
