@@ -1,4 +1,14 @@
-import { Bot, Context, freeStorage, GrammyError, HttpError, session, SessionFlavor } from "../deps.ts";
+import {
+  Bot,
+  Context,
+  freeStorage,
+  GrammyError,
+  HttpError,
+  hydrate,
+  HydrateFlavor,
+  session,
+  SessionFlavor,
+} from "../deps.ts";
 
 import { CommandFeedback } from "./command/feedback.ts";
 import { CommandCams } from "./command/cams.ts";
@@ -14,10 +24,12 @@ type SessionData = {
   };
 };
 
-export type SessionContext = Context & SessionFlavor<SessionData>;
+type SessionContext = Context & SessionFlavor<SessionData>;
+export type MyContext = HydrateFlavor<SessionContext>;
 
-export const bot = new Bot<SessionContext>(Deno.env.get("TOKEN")!);
+export const bot = new Bot<MyContext>(Deno.env.get("TOKEN")!);
 
+bot.use(hydrate());
 bot.use(session({
   initial: () => ({}),
   storage: freeStorage<SessionData>(bot.token),

@@ -1,6 +1,6 @@
 import { Composer, DOMParser, Element, Menu } from "../../deps.ts";
 
-import { SessionContext } from "../bot.ts";
+import { MyContext } from "../bot.ts";
 
 import mountains from "../data/mountains.json" assert { type: "json" };
 
@@ -15,7 +15,7 @@ type WeatherData = {
   summary: string;
 };
 
-const bot = new Composer<SessionContext>();
+const bot = new Composer<MyContext>();
 
 const weather_menu = constructMenu();
 bot.use(weather_menu);
@@ -24,9 +24,9 @@ bot.command("weather", (ctx) => {
   ctx.reply("Регионы", { reply_markup: weather_menu });
 });
 
-function constructMenu(): Menu<SessionContext> {
-  const weather_menu = new Menu<SessionContext>("regions");
-  const regions_menus: Menu<SessionContext>[] = [];
+function constructMenu(): Menu<MyContext> {
+  const weather_menu = new Menu<MyContext>("regions");
+  const regions_menus: Menu<MyContext>[] = [];
 
   weather_menu.dynamic((ctx, range) => {
     if (ctx.session.last_weather === undefined) return;
@@ -45,18 +45,18 @@ function constructMenu(): Menu<SessionContext> {
           parse_mode: "HTML",
         },
       )
-        .finally(() => ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id));
+        .finally(() => tmp.delete());
     }).row();
   });
 
   let i = 0;
   for (const [key_region, region] of Object.entries(mountains)) {
-    const region_menu = new Menu<SessionContext>(`region_${key_region}`);
-    const mountain_menus: Menu<SessionContext>[] = [];
+    const region_menu = new Menu<MyContext>(`region_${key_region}`);
+    const mountain_menus: Menu<MyContext>[] = [];
 
     let k = 0;
     for (const [key_mountain, mountain] of Object.entries(region.value)) {
-      const mountain_menu = new Menu<SessionContext>(`mountain_${key_mountain}`);
+      const mountain_menu = new Menu<MyContext>(`mountain_${key_mountain}`);
 
       for (const [index, alt] of mountain.value.entries()) {
         mountain_menu
@@ -66,7 +66,7 @@ function constructMenu(): Menu<SessionContext> {
             const tmp = await ctx.reply("прогнозируем...");
             ctx.reply(`<code>${mountain.name} | el. ${alt}\n${await forecastForMountain(key_mountain, alt)}</code>`, {
               parse_mode: "HTML",
-            }).finally(() => ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id));
+            }).finally(() => tmp.delete());
             ctx.session.last_weather = {
               key: key_mountain,
               name: mountain.name,
@@ -113,7 +113,7 @@ function constructMenu(): Menu<SessionContext> {
   return weather_menu;
 }
 
-function addNav(menu: Menu<SessionContext>): Menu<SessionContext> {
+function addNav(menu: Menu<MyContext>): Menu<MyContext> {
   return menu
     .row()
     .back("⬅️ назад", (ctx) => ctx.editMessageText(`Регионы`))

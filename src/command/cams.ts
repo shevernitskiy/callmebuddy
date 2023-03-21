@@ -1,8 +1,9 @@
 import { CommandContext, Composer, Context, DOMParser, InputFile, InputMediaPhoto } from "../../deps.ts";
+import { MyContext } from "../bot.ts";
 
 import sources from "../data/cams.json" assert { type: "json" };
 
-const bot = new Composer();
+const bot = new Composer<MyContext>();
 
 bot.command("cam", async (ctx) => {
   try {
@@ -14,7 +15,7 @@ bot.command("cam", async (ctx) => {
     } else {
       await ctx.reply("камеры оффлайн...");
     }
-    await ctx.api.deleteMessage(ctx.from?.id!, tmp.message_id);
+    await tmp.delete();
   } catch (err) {
     ctx.reply("попробуйте позже");
     console.log(err);
