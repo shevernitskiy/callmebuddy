@@ -1,7 +1,7 @@
 # callmebuddy
 
-This is telegram bot ([@callmebuddy](https://t.me/callmebuddy_bot)) hosted on deno deploy. Made with awesome [grammy](https://grammy.dev/)
-framework.
+This is telegram bot ([@callmebuddy](https://t.me/callmebuddy_bot)) hosted on deno deploy. Made with awesome
+[grammy](https://grammy.dev/) framework.
 
 It provides two different commands:
 
@@ -10,8 +10,7 @@ It provides two different commands:
 
 ### Contribution
 
-Pull request, issues and feedback are very welcome. Code style is formatted with deno fmt and commit messages are done following
-Conventional Commits spec.
+Pull request, issues and feedback are very welcome. Code style is formatted with `deno fmt`.
 
 ### Licence
 
