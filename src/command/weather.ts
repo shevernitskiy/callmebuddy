@@ -1,6 +1,6 @@
 import { Composer, DOMParser, Element, Menu } from "../../deps.ts";
 
-import { MyContext } from "../bot.ts";
+import { BotContext } from "../bot.ts";
 
 import mountains from "../data/mountains.json" assert { type: "json" };
 
@@ -15,7 +15,7 @@ type WeatherData = {
   summary: string;
 };
 
-const bot = new Composer<MyContext>();
+const bot = new Composer<BotContext>();
 
 const weather_menu = constructMenu();
 bot.use(weather_menu);
@@ -24,9 +24,9 @@ bot.command("weather", (ctx) => {
   ctx.reply("Регионы", { reply_markup: weather_menu });
 });
 
-function constructMenu(): Menu<MyContext> {
-  const weather_menu = new Menu<MyContext>("regions");
-  const regions_menus: Menu<MyContext>[] = [];
+function constructMenu(): Menu<BotContext> {
+  const weather_menu = new Menu<BotContext>("regions");
+  const regions_menus: Menu<BotContext>[] = [];
 
   weather_menu.dynamic((ctx, range) => {
     if (ctx.session.last_weather === undefined) return;
@@ -51,12 +51,12 @@ function constructMenu(): Menu<MyContext> {
 
   let i = 0;
   for (const [key_region, region] of Object.entries(mountains)) {
-    const region_menu = new Menu<MyContext>(`region_${key_region}`);
-    const mountain_menus: Menu<MyContext>[] = [];
+    const region_menu = new Menu<BotContext>(`region_${key_region}`);
+    const mountain_menus: Menu<BotContext>[] = [];
 
     let k = 0;
     for (const [key_mountain, mountain] of Object.entries(region.value)) {
-      const mountain_menu = new Menu<MyContext>(`mountain_${key_mountain}`);
+      const mountain_menu = new Menu<BotContext>(`mountain_${key_mountain}`);
 
       for (const [index, alt] of mountain.value.entries()) {
         mountain_menu
@@ -113,7 +113,7 @@ function constructMenu(): Menu<MyContext> {
   return weather_menu;
 }
 
-function addNav(menu: Menu<MyContext>): Menu<MyContext> {
+function addNav(menu: Menu<BotContext>): Menu<BotContext> {
   return menu
     .row()
     .back("⬅️ назад", (ctx) => ctx.editMessageText(`Регионы`))

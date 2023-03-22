@@ -1,9 +1,9 @@
 import { CommandContext, Composer, Context, DOMParser, InputFile, InputMediaPhoto } from "../../deps.ts";
-import { MyContext } from "../bot.ts";
+import { BotContext } from "../bot.ts";
 
 import sources from "../data/cams.json" assert { type: "json" };
 
-const bot = new Composer<MyContext>();
+const bot = new Composer<BotContext>();
 
 bot.command("cam", async (ctx) => {
   try {

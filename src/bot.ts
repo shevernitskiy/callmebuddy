@@ -25,9 +25,9 @@ type SessionData = {
 };
 
 type SessionContext = Context & SessionFlavor<SessionData>;
-export type MyContext = HydrateFlavor<SessionContext>;
+export type BotContext = HydrateFlavor<SessionContext>;
 
-export const bot = new Bot<MyContext>(Deno.env.get("TOKEN")!);
+export const bot = new Bot<BotContext>(Deno.env.get("TOKEN")!);
 
 bot.use(hydrate());
 bot.use(session({
