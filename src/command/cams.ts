@@ -48,6 +48,7 @@ async function fetchToBlob(html: string): Promise<Blob | undefined> {
     const source = dom?.querySelector("#video")?.getAttribute("poster");
     if (source === undefined) return;
     const res = await fetch(dom?.querySelector("#video")?.getAttribute("poster")!);
+    if (!res.ok) return undefined;
     return await res.blob();
   } catch (err) {
     throw (err);
