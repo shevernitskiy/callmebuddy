@@ -8,7 +8,7 @@ const bot = new Composer<BotContext>();
 bot.command("cam", async (ctx) => {
   try {
     const tmp = await ctx.reply("фотографигуем...");
-    const media = await getInputMeadias(sources);
+    const media = await getInputMedias(sources);
 
     if (media.length > 0) {
       await replyWithPost(ctx, media);
@@ -22,7 +22,7 @@ bot.command("cam", async (ctx) => {
   }
 });
 
-async function getInputMeadias(sources: { code: string; name: string }[]): Promise<InputMediaPhoto<InputFile>[]> {
+async function getInputMedias(sources: { code: string; name: string }[]): Promise<InputMediaPhoto<InputFile>[]> {
   const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item.code}/`)));
   const htmls = await Promise.all(responses.map((item) => item.text()));
   const out: InputMediaPhoto<InputFile>[] = [];
