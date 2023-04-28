@@ -1,7 +1,7 @@
 import {
   Bot,
   Context,
-  freeStorage,
+  DenoKVAdapter,
   GrammyError,
   HttpError,
   hydrate,
@@ -29,10 +29,12 @@ export type BotContext = HydrateFlavor<SessionContext>;
 
 export const bot = new Bot<BotContext>(Deno.env.get("TOKEN")!);
 
+const kv = await Deno.openKv();
+
 bot.use(hydrate());
 bot.use(session({
   initial: () => ({}),
-  storage: freeStorage<SessionData>(bot.token),
+  storage: new DenoKVAdapter(kv),
 }));
 
 bot.use(CommandFeedback);
