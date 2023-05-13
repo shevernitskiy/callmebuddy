@@ -133,6 +133,11 @@ async function forecastForMountain(mountain: string, alt: number): Promise<strin
 async function fetchMountainHtml(mountain: string, alt: number): Promise<string> {
   const res = await fetch(
     `https://www.mountain-forecast.com/peaks/${mountain}/forecasts/data?elev=all&period_types=p,t,h`,
+    {
+      headers: {
+        Accept: "application/json",
+      },
+    },
   );
   return (await res.json()).elevations[alt].period_types.t.table as string;
 }
