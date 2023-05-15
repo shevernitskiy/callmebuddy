@@ -61,17 +61,25 @@ function constructMenu(): Menu<BotContext> {
       for (const [index, alt] of mountain.value.entries()) {
         mountain_menu
           .text(`${alt}м`, async (ctx) => {
-            ctx.deleteMessage();
-            console.log(`Weather, id: ${ctx.from?.id}, mountain: ${key_mountain}, alt: ${alt}`);
-            const tmp = await ctx.reply("прогнозируем...");
-            ctx.reply(`<code>${mountain.name} | el. ${alt}\n${await forecastForMountain(key_mountain, alt)}</code>`, {
-              parse_mode: "HTML",
-            }).finally(() => tmp.delete());
-            ctx.session.last_weather = {
-              key: key_mountain,
-              name: mountain.name,
-              alt: alt,
-            };
+            try {
+              ctx.deleteMessage();
+              console.log(`Weather, id: ${ctx.from?.id}, mountain: ${key_mountain}, alt: ${alt}`);
+              const tmp = await ctx.reply("прогнозируем...");
+              await ctx.reply(
+                `<code>${mountain.name} | el. ${alt}\n${await forecastForMountain(key_mountain, alt)}</code>`,
+                {
+                  parse_mode: "HTML",
+                },
+              ).finally(() => tmp.delete());
+              ctx.session.last_weather = {
+                key: key_mountain,
+                name: mountain.name,
+                alt: alt,
+              };
+            } catch (err) {
+              console.error(err);
+              ctx.reply("ошибка...");
+            }
           });
 
         if (index % 2 !== 0 && index !== 0) {
@@ -152,19 +160,21 @@ function parseHtml(html: string): WeatherData[] {
   const temp = dom.querySelectorAll("tr.forecast__table-max-temperature span.temp");
   const wind_dir = dom.querySelectorAll("tr.forecast__table-wind div.wind-icon__tooltip");
   const wind_speed = dom.querySelectorAll("tr.forecast__table-wind text");
-  const snow = dom.querySelectorAll("tr.forecast__table-snow span.snow");
+  const snow = dom.querySelectorAll("tr.forecast__table-snow div.snow-amount span");
   const rain = dom.querySelectorAll("tr.forecast__table-rain span.rain");
   const summary = dom.querySelectorAll("tr.forecast__table-summary td");
 
   for (let i = 0; i < time.length; i++) {
+    const snow_temp = Number(snow.item(i).textContent.trim());
+    const rain_temp = Number(rain.item(i).textContent.trim());
     out.push({
       day: "",
       time: time.item(i).textContent.trim().replace(" AM", "am").replace(" PM", "pm"),
       temp: Number(temp.item(i).textContent.trim()),
       wind_dir: wind_dir.item(i).textContent.trim(),
       wind_speed: Number(wind_speed.item(i).textContent.trim()),
-      snow: Number(snow.item(i).textContent.trim().replaceAll("-", "0")),
-      rain: Number(rain.item(i).textContent.trim().replaceAll("-", "0")),
+      snow: isNaN(snow_temp) ? 0 : snow_temp,
+      rain: isNaN(rain_temp) ? 0 : rain_temp,
       summary: summary.item(i).textContent.trim(),
     });
   }
