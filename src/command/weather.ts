@@ -169,7 +169,7 @@ function parseHtml(html: string): WeatherData[] {
     const rain_temp = Number(rain.item(i).textContent.trim());
     out.push({
       day: "",
-      time: time.item(i).textContent.trim().replace(" AM", "am").replace(" PM", "pm"),
+      time: time.item(i).textContent.trim().replace(" AM", "am").replace(" PM", "pm"),
       temp: Number(temp.item(i).textContent.trim()),
       wind_dir: wind_dir.item(i).textContent.trim(),
       wind_speed: Number(wind_speed.item(i).textContent.trim()),
