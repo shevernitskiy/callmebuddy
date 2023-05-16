@@ -183,7 +183,7 @@ function parseHtml(html: string): WeatherData[] {
   for (let i = 0; i < days.length; i++) {
     const day = days.item(i);
     for (let j = 0; j < Number((day as Element).getAttribute("colspan")); j++) {
-      out[k].day = day.textContent.trim().replaceAll("\n        ", " ").replaceAll("  ", " ");
+      out[k].day = (day as Element).getAttribute("data-column-name")!.replaceAll("-", " ");
       k++;
     }
   }
