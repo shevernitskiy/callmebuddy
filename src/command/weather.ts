@@ -160,12 +160,12 @@ function parseHtml(html: string): WeatherData[] {
   const temp = dom.querySelectorAll("tr.forecast__table-max-temperature span.temp");
   const wind_dir = dom.querySelectorAll("tr.forecast__table-wind div.wind-icon__tooltip");
   const wind_speed = dom.querySelectorAll("tr.forecast__table-wind text");
-  const snow = dom.querySelectorAll("tr.forecast__table-snow div.snow-amount span");
+  const snow = dom.querySelectorAll("tr.forecast__table-snow div.snow-amount");
   const rain = dom.querySelectorAll("tr.forecast__table-rain span.rain");
   const summary = dom.querySelectorAll("tr.forecast__table-summary td");
 
   for (let i = 0; i < time.length; i++) {
-    const snow_temp = Number(snow.item(i).textContent.trim());
+    const snow_temp = Number((snow.item(i) as Element).getAttribute("data-value"));
     const rain_temp = Number(rain.item(i).textContent.trim());
     out.push({
       day: "",
