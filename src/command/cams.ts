@@ -23,23 +23,27 @@ bot.command("cam", async (ctx) => {
 });
 
 async function getInputMedias(sources: { code: string; name: string }[]): Promise<InputMediaPhoto<InputFile>[]> {
-  const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item.code}/`)));
-  const htmls = await Promise.all(responses.map((item) => item.text()));
-  const out: InputMediaPhoto<InputFile>[] = [];
+  try {
+    const responses = await Promise.all(sources.map((item) => fetch(`https://rtsp.me/embed/${item.code}/`)));
+    const htmls = await Promise.all(responses.map((item) => item.text()));
+    const out: InputMediaPhoto<InputFile>[] = [];
 
-  for (const [index, html] of htmls.entries()) {
-    const blob = await fetchToBlob(html);
+    for (const [index, html] of htmls.entries()) {
+      const blob = await fetchToBlob(html);
 
-    if (blob === undefined) continue;
+      if (blob === undefined) continue;
 
-    out.push({
-      media: new InputFile(blob),
-      caption: sources[index].name,
-      type: "photo",
-    });
+      out.push({
+        media: new InputFile(blob),
+        caption: sources[index].name,
+        type: "photo",
+      });
+    }
+
+    return out;
+  } catch (err) {
+    throw err;
   }
-
-  return out;
 }
 
 async function fetchToBlob(html: string): Promise<Blob | undefined> {
