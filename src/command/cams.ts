@@ -1,4 +1,4 @@
-import { CommandContext, Composer, Context, DOMParser, InputFile, InputMediaPhoto } from "../../deps.ts";
+import { CommandContext, Composer, Context, DOMParser, format, InputFile, InputMediaPhoto } from "../../deps.ts";
 import { BotContext } from "../bot.ts";
 
 import sources from "../data/cams.json" assert { type: "json" };
@@ -7,8 +7,27 @@ const bot = new Composer<BotContext>();
 
 bot.command("cam", async (ctx) => {
   try {
+    console.log(`Cams, id: ${ctx.msg!.from?.id}`);
     const tmp = await ctx.reply("фотографигуем...");
     const media = await getInputMedias(sources);
+
+    if (media.length > 0) {
+      await replyWithPost(ctx, media);
+    } else {
+      await ctx.reply("камеры оффлайн...");
+    }
+    await tmp.delete();
+  } catch (err) {
+    ctx.reply("попробуйте позже");
+    console.log(err);
+  }
+});
+
+bot.command("everest", async (ctx) => {
+  try {
+    console.log(`Everest, id: ${ctx.msg!.from?.id}`);
+    const tmp = await ctx.reply("фотографигуем...");
+    const media = await getInputMediasEverest();
 
     if (media.length > 0) {
       await replyWithPost(ctx, media);
@@ -46,6 +65,30 @@ async function getInputMedias(sources: { code: string; name: string }[]): Promis
   }
 }
 
+async function getInputMediasEverest(): Promise<InputMediaPhoto<InputFile>[]> {
+  try {
+    const res = await fetch(
+      "https://node.windy.com/webcams/v1.0/list?nearby=27.709,86.661&radius=250&order=popularity&category=&limit=10&offset=0&lang=ru",
+    );
+    const data = await res.json();
+    const out: InputMediaPhoto<InputFile>[] = [];
+
+    for (const item of data.cams) {
+      const date = new Date(item.lastUpdate);
+
+      out.push({
+        media: new InputFile(new URL(item.images?.current?.full)),
+        caption: `${item.title} | ${format(date, "dd.MM.yyyy HH:mm") ?? "unknown date"}`,
+        type: "photo",
+      });
+    }
+
+    return out;
+  } catch (err) {
+    throw err;
+  }
+}
+
 async function fetchToBlob(html: string): Promise<Blob | undefined> {
   try {
     const dom = new DOMParser().parseFromString(html, "text/html");
@@ -62,7 +105,6 @@ async function fetchToBlob(html: string): Promise<Blob | undefined> {
 async function replyWithPost(ctx: CommandContext<Context>, out: InputMediaPhoto<InputFile>[]): Promise<void> {
   try {
     if (out.length > 0) {
-      console.log(`Cams, id: ${ctx.msg!.from?.id}`);
       await ctx.replyWithMediaGroup(out);
     } else {
       await ctx.reply("камеры оффлайн...");

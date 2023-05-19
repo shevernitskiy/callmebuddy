@@ -18,3 +18,5 @@ export { hydrate, type HydrateFlavor } from "https://deno.land/x/grammy_hydrate@
 export { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.36-alpha/deno-dom-wasm.ts";
 
 export { serve } from "https://deno.land/std@0.179.0/http/server.ts";
+
+export { format } from "https://deno.land/std@0.188.0/datetime/format.ts";
