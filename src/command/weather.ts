@@ -36,7 +36,7 @@ function constructMenu(): Menu<BotContext> {
         `Weather, id: ${ctx.from?.id}, mountain: ${ctx.session.last_weather?.key}, alt: ${ctx.session.last_weather?.alt}`,
       );
       const tmp = await ctx.reply("прогнозируем...");
-      ctx.reply(
+      tmp.editText(
         `<code>${ctx.session.last_weather?.name} | el. ${ctx.session.last_weather?.alt}\n${await forecastForMountain(
           ctx.session.last_weather?.key!,
           ctx.session.last_weather?.alt!,
@@ -44,8 +44,7 @@ function constructMenu(): Menu<BotContext> {
         {
           parse_mode: "HTML",
         },
-      )
-        .finally(() => tmp.delete());
+      );
     }).row();
   });
 
