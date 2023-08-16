@@ -131,10 +131,15 @@ function addNav(menu: Menu<BotContext>): Menu<BotContext> {
 }
 
 async function forecastForMountain(mountain: string, alt: number): Promise<string> {
-  const html = await fetchMountainHtml(mountain, alt);
-  const data = parseHtml(html);
-  const message = formMessage(data);
-  return message;
+  try {
+    const html = await fetchMountainHtml(mountain, alt);
+    const data = parseHtml(html);
+    const message = formMessage(data);
+    return message;
+  } catch (err) {
+    console.error(err);
+    return "что-то пошло не так:(";
+  }
 }
 
 async function fetchMountainHtml(mountain: string, alt: number): Promise<string> {
@@ -165,16 +170,16 @@ function parseHtml(html: string): WeatherData[] {
 
   for (let i = 0; i < time.length; i++) {
     const snow_temp = Number((snow.item(i) as Element).getAttribute("data-value"));
-    const rain_temp = Number(rain.item(i).textContent.trim());
+    const rain_temp = Number(rain.item(i)?.textContent.trim());
     out.push({
       day: "",
-      time: time.item(i).textContent.trim().replace(" AM", "am").replace(" PM", "pm"),
-      temp: Number(temp.item(i).textContent.trim()),
-      wind_dir: wind_dir.item(i).textContent.trim(),
-      wind_speed: Number(wind_speed.item(i).textContent.trim()),
+      time: time.item(i)?.textContent.trim().replace(" AM", "am").replace(" PM", "pm"),
+      temp: Number(temp.item(i)?.textContent.trim()),
+      wind_dir: wind_dir.item(i)?.textContent.trim(),
+      wind_speed: Number(wind_speed.item(i)?.textContent.trim()),
       snow: isNaN(snow_temp) ? 0 : snow_temp,
       rain: isNaN(rain_temp) ? 0 : rain_temp,
-      summary: summary.item(i).textContent.trim(),
+      summary: summary.item(i)?.textContent.trim(),
     });
   }
 
