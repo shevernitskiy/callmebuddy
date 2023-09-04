@@ -1,2 +1,5 @@
 deno.lock
 .env
+kv.db
+kv.db-shm
+kv.db-wal

@@ -27,9 +27,19 @@ type SessionData = {
 type SessionContext = Context & SessionFlavor<SessionData>;
 export type BotContext = HydrateFlavor<SessionContext>;
 
-export const bot = new Bot<BotContext>(Deno.env.get("TOKEN")!);
+let token: string;
+let kv_path: string | undefined;
 
-const kv = await Deno.openKv();
+if (Deno.env.get("PROD")) {
+  token = Deno.env.get("TOKEN")!;
+  kv_path = undefined;
+} else {
+  token = Deno.readTextFileSync(".env").split("=")[1].replaceAll('"', "");
+  kv_path = "kv.db";
+}
+
+export const bot = new Bot<BotContext>(token);
+const kv = await Deno.openKv(kv_path);
 
 bot.use(hydrate());
 bot.use(session({
@@ -53,4 +63,6 @@ bot.catch((err) => {
   }
 });
 
-// bot.start();
+if (!Deno.env.get("PROD")) {
+  bot.start();
+}
