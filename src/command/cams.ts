@@ -1,14 +1,13 @@
 import { CommandContext, Composer, Context, format, InputFile, InputMediaPhoto } from "../../deps.ts";
 import { BotContext } from "../bot.ts";
 
-import sources from "../data/cams.json" assert { type: "json" };
-
 const bot = new Composer<BotContext>();
 
 bot.command("cam", async (ctx) => {
   try {
     console.log(`Cams, id: ${ctx.msg!.from?.id}`);
     const tmp = await ctx.reply("фотографигуем...");
+    const sources = await getCamerasIds();
     const media = await getInputMedia(sources);
 
     if (media.length > 0) {
@@ -43,10 +42,21 @@ bot.command("everest", async (ctx) => {
 
 async function getInputMedia(sources: { code: string; name: string }[]): Promise<InputMediaPhoto<InputFile>[]> {
   try {
-    const responses = await Promise.all(
+    const source: { code: string; name: string; url: string }[] = [];
+    const redirects = await Promise.all(
       sources.map((item) =>
         fetch(
-          `https://api.codetabs.com/v1/proxy/?quest=https://e30.ru.cloud.trassir.com/thumbnail_get_tv?link=${item.code}`,
+          `https://api.codetabs.com/v1/proxy/?quest=https://ru.cloud.trassir.com/thumbnail_get_tv?link=${item.code}`,
+        )
+      ),
+    );
+    for (let i = 0; i < sources.length; i++) {
+      source.push({ ...(sources[i]), url: (await redirects[i].json()).redirect });
+    }
+    const responses = await Promise.all(
+      source.map((item) =>
+        fetch(
+          `https://api.codetabs.com/v1/proxy/?quest=https://${item.url}/thumbnail_get_tv?link=${item.code}`,
         )
       ),
     );
@@ -56,7 +66,7 @@ async function getInputMedia(sources: { code: string; name: string }[]): Promise
 
     for (const [index, item] of json.entries()) {
       if (!item.thumbnails?.at(0)?.content) continue;
-      const blob = b64toBlob(item.thumbnails[0].content);
+      const blob = b64toBlob(item?.thumbnails?.at(0)?.content);
       if (blob === undefined) continue;
 
       out.push({
@@ -70,6 +80,20 @@ async function getInputMedia(sources: { code: string; name: string }[]): Promise
   } catch (err) {
     throw err;
   }
+}
+
+async function getCamerasIds(): Promise<{ code: string; name: string }[]> {
+  const pattern = new RegExp(
+    /iframe src="https:\/\/ru\.cloud\.trassir\.com\/embed\/(.+)\?[.\s\w\W]*?camera-desc">\n[\s]+(.+)\s</,
+    "gm",
+  );
+  const res = await fetch("https://resort-elbrus.ru/cameras/");
+  const html = await res.text();
+  const out: { code: string; name: string }[] = [];
+  for (const match of html.matchAll(pattern)) {
+    out.push({ code: match[1], name: match[2].trim() });
+  }
+  return out;
 }
 
 async function getInputMediasEverest(): Promise<InputMediaPhoto<InputFile>[]> {
