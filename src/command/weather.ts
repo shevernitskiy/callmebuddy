@@ -144,7 +144,7 @@ async function forecastForMountain(mountain: string, alt: number): Promise<strin
 
 async function fetchMountainHtml(mountain: string, alt: number): Promise<string> {
   const res = await fetch(
-    `https://www.mountain-forecast.com/peaks/${mountain}/forecasts/data?elev=all&period_types=p,t,h`,
+    `https://www.mountain-forecast.com/peaks/${mountain}/forecasts/data?elev=${alt}&period_types=t,h`,
     {
       headers: {
         Accept: "application/json",
@@ -159,17 +159,21 @@ function parseHtml(html: string): WeatherData[] {
 
   const out: WeatherData[] = [];
 
-  const days = dom.querySelectorAll("td.forecast__table-days-item");
-  const time = dom.querySelectorAll("tr.forecast__table-time span.forecast__table-value");
-  const temp = dom.querySelectorAll("tr.forecast__table-max-temperature span.temp");
-  const wind_dir = dom.querySelectorAll("tr.forecast__table-wind div.wind-icon__tooltip");
-  const wind_speed = dom.querySelectorAll("tr.forecast__table-wind text");
-  const snow = dom.querySelectorAll("tr.forecast__table-snow div.snow-amount");
-  const rain = dom.querySelectorAll("tr.forecast__table-rain span.rain");
-  const summary = dom.querySelectorAll("tr.forecast__table-summary td");
+  const days = dom.querySelectorAll("td.forecast-table-days__cell");
+  const time = dom.querySelectorAll("tr.forecast-table__row div.forecast-table__time span");
+  const temp = dom.querySelectorAll("tr.forecast-table__row div.forecast-table__container--max");
+  const wind_dir = dom.querySelectorAll(
+    "tr.forecast-table__row div.forecast-table__container--wind div.wind-icon__tooltip",
+  );
+  const wind_speed = dom.querySelectorAll("tr.forecast-table__row div.forecast-table__container--wind text");
+  const snow = dom.querySelectorAll("tr.forecast-table__row div.snow-amount span");
+  const rain = dom.querySelectorAll("tr.forecast-table__row div.rain-amount span");
+  const summary = dom.querySelectorAll(
+    "tr.forecast-table__row span.forecast-table__phrase",
+  );
 
   for (let i = 0; i < time.length; i++) {
-    const snow_temp = Number((snow.item(i) as Element).getAttribute("data-value"));
+    const snow_temp = Number(snow.item(i)?.textContent.trim());
     const rain_temp = Number(rain.item(i)?.textContent.trim());
     out.push({
       day: "",
@@ -187,7 +191,7 @@ function parseHtml(html: string): WeatherData[] {
   for (let i = 0; i < days.length; i++) {
     const day = days.item(i);
     for (let j = 0; j < Number((day as Element).getAttribute("colspan")); j++) {
-      out[k].day = (day as Element).getAttribute("data-column-name")!.replaceAll("-", " ");
+      out[k].day = (day as Element).getAttribute("data-value")!.replaceAll("_", " ");
       k++;
     }
   }
