@@ -1,4 +1,13 @@
-import { CommandContext, Composer, Context, format, InputFile, InputMediaPhoto } from "../../deps.ts";
+import {
+  CommandContext,
+  Composer,
+  Context,
+  DOMParser,
+  Element,
+  format,
+  InputFile,
+  InputMediaPhoto,
+} from "../../deps.ts";
 import { BotContext } from "../bot.ts";
 
 const bot = new Composer<BotContext>();
@@ -83,15 +92,15 @@ async function getInputMedia(sources: { code: string; name: string }[]): Promise
 }
 
 async function getCamerasIds(): Promise<{ code: string; name: string }[]> {
-  const pattern = new RegExp(
-    /iframe src="https:\/\/ru\.cloud\.trassir\.com\/embed\/(.+)\?[.\s\w\W]*?camera-desc">\n[\s]+(.+)\s</,
-    "gm",
-  );
-  const res = await fetch("https://resort-elbrus.ru/cameras/");
+  const res = await fetch("https://resort-elbrus.ru/webcams");
   const html = await res.text();
+  const dom = new DOMParser().parseFromString(html, "text/html")!;
   const out: { code: string; name: string }[] = [];
-  for (const match of html.matchAll(pattern)) {
-    out.push({ code: match[1], name: match[2].trim() });
+  for (const item of dom.querySelectorAll('div[class^="Webcam_wrapper"]')) {
+    const id = (item as Element).querySelector("iframe")?.getAttribute("src")?.split("embed/")[1].split("?")[0];
+    const name = (item as Element).querySelector("div[class^='Webcam_description']")?.textContent;
+
+    if (id && name) out.push({ code: id, name: name });
   }
   return out;
 }
