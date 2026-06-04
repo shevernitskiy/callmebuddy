@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "start": "deno run -A --unstable-kv ./src/bot.ts",
+    "start": "deno run -A --env --unstable-kv ./src/bot.ts",
     "dev": "deno run -A --watch ./src/bot.ts"
   },
   "fmt": {
@@ -12,6 +12,7 @@
     "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.56",
     "@grammyjs/grammy": "jsr:@grammyjs/grammy@^2.0.0-beta.3",
     "@shevernitskiy/proxify": "jsr:@shevernitskiy/proxify@^0.1.3",
-    "@std/datetime": "jsr:@std/datetime@^0.225.5"
+    "@std/datetime": "jsr:@std/datetime@^0.225.5",
+    "@upstash/redis": "npm:@upstash/redis@^1.38.0"
   }
 }

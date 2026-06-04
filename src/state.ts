@@ -1,4 +1,7 @@
 import { type Mutatable, MUTATED, proxify } from "@shevernitskiy/proxify";
+import { Redis } from "@upstash/redis";
+
+const UNIQUE_KEY = "callmebuddy:state";
 
 export type LastWeather = {
   key: string;
@@ -11,7 +14,6 @@ const default_state = {
   [MUTATED]: true,
 };
 
-let db: Deno.Kv | undefined;
 let state_promise: Promise<State> | undefined;
 
 export type State = Mutatable<typeof default_state>;
@@ -22,14 +24,19 @@ export function getState(): Promise<State> {
 }
 
 async function loadState(): Promise<State> {
-  db ??= await Deno.openKv(Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined ? undefined : "kv.db");
-  const state = (await db.get<typeof default_state>(["callmebuddy_state"])).value ?? default_state;
+  const redis = new Redis({
+    url: Deno.env.get("UPSTASH_REDIS_REST_URL")!,
+    token: Deno.env.get("UPSTASH_REDIS_REST_TOKEN")!,
+  });
+
+  const fetchedState = await redis.get<typeof default_state>(UNIQUE_KEY);
+  const state = fetchedState ?? default_state;
 
   return proxify(state, async () => {
     if (state[MUTATED]) {
       console.debug("saving state");
       state[MUTATED] = false;
-      await db?.set(["callmebuddy_state"], state);
+      await redis.set(UNIQUE_KEY, state);
     }
   });
 }

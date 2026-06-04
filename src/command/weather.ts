@@ -2,7 +2,7 @@ import { Composer } from "@grammyjs/grammy";
 import { DOMParser, Element } from "@b-fuze/deno-dom";
 
 import { BotContext } from "../bot.ts";
-// import { findUserState, flushState, getUserState } from "../state.ts";
+import { findUserState, flushState, getUserState } from "../state.ts";
 
 import mountains from "../data/mountains.json" with { type: "json" };
 
@@ -44,16 +44,16 @@ bot.callbackQuery("weather:close", async (ctx) => {
 
 bot.callbackQuery("weather:last", async (ctx) => {
   // ts-ignore TODO
-  // const state = await ctx.state();
-  // const last_weather = findUserState(state, ctx.from?.id)?.last_weather;
-  // if (last_weather === undefined) {
-  //   await ctx.answerCallbackQuery("Нет последнего прогноза");
-  //   return;
-  // }
+  const state = await ctx.state();
+  const last_weather = findUserState(state, ctx.from?.id)?.last_weather;
+  if (last_weather === undefined) {
+    await ctx.answerCallbackQuery("Нет последнего прогноза");
+    return;
+  }
 
-  // await sendForecast(ctx, last_weather.key, last_weather.name, last_weather.alt);
+  await sendForecast(ctx, last_weather.key, last_weather.name, last_weather.alt);
 
-  await ctx.answerCallbackQuery("Нет последнего прогноза");
+  // await ctx.answerCallbackQuery("Нет последнего прогноза");
 });
 
 bot.callbackQuery(/^weather:region:(.+)$/, async (ctx) => {
@@ -94,15 +94,15 @@ bot.callbackQuery(/^weather:forecast:([^:]+):(\d+)$/, async (ctx) => {
   await sendForecast(ctx, key_mountain, mountain.name, alt);
 });
 
-function regionsKeyboard(_ctx: BotContext): InlineKeyboard {
+async function regionsKeyboard(ctx: BotContext): Promise<InlineKeyboard> {
   const keyboard = createKeyboard();
-  // const state = await ctx.state();
-  // const last_weather = findUserState(state, ctx.from?.id)?.last_weather;
+  const state = await ctx.state();
+  const last_weather = findUserState(state, ctx.from?.id)?.last_weather;
 
-  // if (last_weather !== undefined) {
-  //   addButton(keyboard, `${last_weather.name}, ${last_weather.alt}м`, "weather:last");
-  //   addRow(keyboard);
-  // }
+  if (last_weather !== undefined) {
+    addButton(keyboard, `${last_weather.name}, ${last_weather.alt}м`, "weather:last");
+    addRow(keyboard);
+  }
 
   let i = 0;
   for (const [key_region, region] of Object.entries(mountains)) {
@@ -164,12 +164,12 @@ async function sendForecast(ctx: BotContext, key: string, name: string, alt: num
       })
       .finally(() => ctx.api.deleteMessage(tmp.chat.id, tmp.message_id));
 
-    // const state = await ctx.state();
-    // const user_state = getUserState(state, ctx.from?.id);
-    // if (user_state !== undefined) {
-    //   user_state.last_weather = { key, name, alt };
-    //   await flushState(state);
-    // }
+    const state = await ctx.state();
+    const user_state = getUserState(state, ctx.from?.id);
+    if (user_state !== undefined) {
+      user_state.last_weather = { key, name, alt };
+      await flushState(state);
+    }
     await ctx.answerCallbackQuery();
   } catch (err) {
     console.error(err);
