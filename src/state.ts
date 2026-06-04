@@ -1,5 +1,6 @@
-import { type Mutatable, MUTATED, proxify } from "@shevernitskiy/proxify";
-import { Redis } from "@upstash/redis";
+import { type Mutatable, MUTATED } from "@shevernitskiy/proxify";
+
+import { buildUpstash } from "@shevernitskiy/proxify/platform/upstash";
 
 const UNIQUE_KEY = "callmebuddy:state";
 
@@ -16,23 +17,12 @@ const default_state = {
 
 export type State = Mutatable<typeof default_state>;
 
-const redis = new Redis({
-  url: Deno.env.get("UPSTASH_REDIS_REST_URL")!,
-  token: Deno.env.get("UPSTASH_REDIS_REST_TOKEN")!,
-});
-
-export async function getState(): Promise<State> {
-  const fetchedState = await redis.get<typeof default_state>(UNIQUE_KEY);
-  const state = fetchedState ?? default_state;
-
-  return proxify(state, async () => {
-    if (state[MUTATED]) {
-      console.debug("saving state");
-      state[MUTATED] = false;
-      await redis.set(UNIQUE_KEY, state);
-    }
-  });
-}
+export const getState = buildUpstash(
+  Deno.env.get("UPSTASH_REDIS_REST_URL")!,
+  Deno.env.get("UPSTASH_REDIS_REST_TOKEN")!,
+  default_state,
+  UNIQUE_KEY,
+);
 
 export function findUserState(state: State, user_id: number | undefined) {
   if (user_id === undefined) return undefined;
