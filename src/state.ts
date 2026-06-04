@@ -1,8 +1,6 @@
 import { type Mutatable, MUTATED } from "@shevernitskiy/proxify";
 
-import { buildUpstash } from "@shevernitskiy/proxify/platform/upstash";
-
-const UNIQUE_KEY = "callmebuddy:state";
+import { buildCloudflareKV } from "@shevernitskiy/proxify/platform/cloudflare";
 
 export type LastWeather = {
   key: string;
@@ -17,11 +15,14 @@ const default_state = {
 
 export type State = Mutatable<typeof default_state>;
 
-export const getState = buildUpstash(
-  Deno.env.get("UPSTASH_REDIS_REST_URL")!,
-  Deno.env.get("UPSTASH_REDIS_REST_TOKEN")!,
+export const getState = buildCloudflareKV(
+  {
+    accountId: Deno.env.get("CLOUDFLARE_ACCOUNT_ID")!,
+    namespaceId: Deno.env.get("CLOUDFLARE_NAMESPACE_ID")!,
+    apiToken: Deno.env.get("CLOUDFLARE_APITOKEN")!,
+  },
   default_state,
-  UNIQUE_KEY,
+  "callmebuddy",
 );
 
 export function findUserState(state: State, user_id: number | undefined) {

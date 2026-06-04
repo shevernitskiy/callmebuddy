@@ -11,7 +11,7 @@
   "imports": {
     "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.56",
     "@grammyjs/grammy": "jsr:@grammyjs/grammy@^2.0.0-beta.3",
-    "@shevernitskiy/proxify": "jsr:@shevernitskiy/proxify@^0.1.4",
+    "@shevernitskiy/proxify": "jsr:@shevernitskiy/proxify@^0.1.6",
     "@std/datetime": "jsr:@std/datetime@^0.225.5"
   }
 }
