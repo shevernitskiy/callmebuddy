@@ -1,51 +1,40 @@
-import {
-  Bot,
-  Context,
-  DenoKVAdapter,
-  GrammyError,
-  HttpError,
-  hydrate,
-  HydrateFlavor,
-  session,
-  SessionFlavor,
-} from "../deps.ts";
+import { Bot, Context, GrammyError, HttpError } from "@grammyjs/grammy";
 
 import { CommandFeedback } from "./command/feedback.ts";
 import { CommandCams } from "./command/cams.ts";
 import { CommandWeather } from "./command/weather.ts";
+import { getState, type State } from "./state.ts";
 
 console.log("Start bot...");
 
-type SessionData = {
-  last_weather?: {
-    key: string;
-    name: string;
-    alt: number;
-  };
+type StateFlavor = {
+  state: () => Promise<State>;
 };
 
-type SessionContext = Context & SessionFlavor<SessionData>;
-export type BotContext = HydrateFlavor<SessionContext>;
+export type BotContext = Context & StateFlavor;
 
-let token: string;
-let kv_path: string | undefined;
-
-if (Deno.env.get("PROD")) {
-  token = Deno.env.get("TOKEN")!;
-  kv_path = undefined;
-} else {
-  token = Deno.readTextFileSync(".env").split("=")[1].replaceAll('"', "");
-  kv_path = "kv.db";
+function getToken(): string {
+  const token = Deno.env.get("TOKEN") ?? readTokenFromDotEnv();
+  if (!token) throw new Error("TOKEN is required");
+  return token;
 }
 
-export const bot = new Bot<BotContext>(token);
-const kv = await Deno.openKv(kv_path);
+function readTokenFromDotEnv(): string | undefined {
+  try {
+    const env = Deno.readTextFileSync(".env");
+    const line = env.split(/\r?\n/).find((item) => item.trim().startsWith("TOKEN="));
+    return line?.split("=").slice(1).join("=").trim().replace(/^["']|["']$/g, "");
+  } catch {
+    return undefined;
+  }
+}
 
-bot.use(hydrate());
-bot.use(session({
-  initial: () => ({}),
-  storage: new DenoKVAdapter(kv),
-}));
+export const bot = new Bot<BotContext>(getToken());
+
+bot.use(async (ctx, next) => {
+  ctx.state = getState;
+  await next();
+});
 
 bot.use(CommandFeedback);
 bot.use(CommandCams);
@@ -63,6 +52,6 @@ bot.catch((err) => {
   }
 });
 
-if (!Deno.env.get("PROD")) {
-  bot.start();
+if (import.meta.main) {
+  await bot.start();
 }

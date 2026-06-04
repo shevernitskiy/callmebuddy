@@ -1,32 +1,31 @@
-import {
-  CommandContext,
-  Composer,
-  Context,
-  DOMParser,
-  Element,
-  format,
-  InputFile,
-  InputMediaPhoto,
-} from "../../deps.ts";
+import { CommandContext, Composer, Context, InputFile } from "@grammyjs/grammy";
+import { DOMParser, Element } from "@b-fuze/deno-dom";
+import { format } from "@std/datetime/format";
 import { BotContext } from "../bot.ts";
 
 const bot = new Composer<BotContext>();
 
+type InputMediaPhoto = {
+  type: "photo";
+  media: InputFile | string;
+  caption?: string;
+};
+
 bot.command("cam", async (ctx) => {
   try {
     console.log(`Cams, id: ${ctx.msg!.from?.id}`);
-    const tmp = await ctx.reply("фотографигуем...");
+    const tmp = await ctx.sendMessage("фотографигуем...");
     const sources = await getCamerasIds();
     const media = await getInputMedia(sources);
 
     if (media.length > 0) {
       await replyWithPost(ctx, media);
     } else {
-      await ctx.reply("камеры оффлайн...");
+      await ctx.sendMessage("камеры оффлайн...");
     }
-    await tmp.delete();
+    await ctx.api.deleteMessage(tmp.chat.id, tmp.message_id);
   } catch (err) {
-    ctx.reply("попробуйте позже");
+    ctx.sendMessage("попробуйте позже");
     console.log(err);
   }
 });
@@ -34,22 +33,22 @@ bot.command("cam", async (ctx) => {
 bot.command("everest", async (ctx) => {
   try {
     console.log(`Everest, id: ${ctx.msg!.from?.id}`);
-    const tmp = await ctx.reply("фотографигуем...");
+    const tmp = await ctx.sendMessage("фотографигуем...");
     const media = await getInputMediasEverest();
 
     if (media.length > 0) {
       await replyWithPost(ctx, media);
     } else {
-      await ctx.reply("камеры оффлайн...");
+      await ctx.sendMessage("камеры оффлайн...");
     }
-    await tmp.delete();
+    await ctx.api.deleteMessage(tmp.chat.id, tmp.message_id);
   } catch (err) {
-    ctx.reply("попробуйте позже");
+    ctx.sendMessage("попробуйте позже");
     console.log(err);
   }
 });
 
-async function getInputMedia(sources: { code: string; name: string }[]): Promise<InputMediaPhoto<InputFile>[]> {
+async function getInputMedia(sources: { code: string; name: string }[]): Promise<InputMediaPhoto[]> {
   try {
     const source: { code: string; name: string; url: string }[] = [];
     const redirects = await Promise.all(
@@ -71,7 +70,7 @@ async function getInputMedia(sources: { code: string; name: string }[]): Promise
     );
     const text = await Promise.all(responses.map((item) => item.text()));
     const json = text.map((item) => JSON.parse(item));
-    const out: InputMediaPhoto<InputFile>[] = [];
+    const out: InputMediaPhoto[] = [];
 
     for (const [index, item] of json.entries()) {
       if (!item.thumbnails?.at(0)?.content) continue;
@@ -105,13 +104,13 @@ async function getCamerasIds(): Promise<{ code: string; name: string }[]> {
   return out;
 }
 
-async function getInputMediasEverest(): Promise<InputMediaPhoto<InputFile>[]> {
+async function getInputMediasEverest(): Promise<InputMediaPhoto[]> {
   try {
     const res = await fetch(
       "https://node.windy.com/webcams/v1.0/list?nearby=27.709,86.661&radius=250&order=popularity&category=&limit=10&offset=0&lang=ru",
     );
     const data = await res.json();
-    const out: InputMediaPhoto<InputFile>[] = [];
+    const out: InputMediaPhoto[] = [];
 
     for (const item of data.cams) {
       const date = new Date(item.lastUpdate);
@@ -149,12 +148,12 @@ function b64toBlob(data: string, content_type = "image/png", slice_size = 512): 
   return blob;
 }
 
-async function replyWithPost(ctx: CommandContext<Context>, out: InputMediaPhoto<InputFile>[]): Promise<void> {
+async function replyWithPost(ctx: CommandContext<Context>, out: InputMediaPhoto[]): Promise<void> {
   try {
     if (out.length > 0) {
-      await ctx.replyWithMediaGroup(out);
+      await ctx.sendMediaGroup(out);
     } else {
-      await ctx.reply("камеры оффлайн...");
+      await ctx.sendMessage("камеры оффлайн...");
     }
   } catch (err) {
     throw err;

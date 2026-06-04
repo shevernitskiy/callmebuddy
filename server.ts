@@ -1,13 +1,12 @@
-import { serve, webhookCallback } from "./deps.ts";
-
 import { bot } from "./src/bot.ts";
 
-const handleUpdate = webhookCallback(bot, "std/http");
+await bot.init();
 
-serve(async (req) => {
-  const path = req.url.split(req.headers.get("host")!)[1];
+Deno.serve(async (req) => {
+  const path = new URL(req.url).pathname;
   if (req.method === "POST" && path === "/bot") {
-    return await handleUpdate(req);
+    await bot.handleUpdate(await req.json());
+    return new Response("OK");
   }
   return new Response("Hello, world");
 });

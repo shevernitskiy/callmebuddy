@@ -1,8 +1,10 @@
-import { Composer, DOMParser, Element, Menu } from "../../deps.ts";
+import { Composer } from "@grammyjs/grammy";
+import { DOMParser, Element } from "@b-fuze/deno-dom";
 
 import { BotContext } from "../bot.ts";
+import { findUserState, flushState, getUserState } from "../state.ts";
 
-import mountains from "../data/mountains.json" assert { type: "json" };
+import mountains from "../data/mountains.json" with { type: "json" };
 
 type WeatherData = {
   day: string;
@@ -15,119 +17,190 @@ type WeatherData = {
   summary: string;
 };
 
+type InlineKeyboard = {
+  inline_keyboard: InlineKeyboardButton[][];
+};
+
+type InlineKeyboardButton = {
+  text: string;
+  callback_data: string;
+};
+
 const bot = new Composer<BotContext>();
 
-const weather_menu = constructMenu();
-bot.use(weather_menu);
-
-bot.command("weather", (ctx) => {
-  ctx.reply("Регионы", { reply_markup: weather_menu });
+bot.command("weather", async (ctx) => {
+  await ctx.sendMessage("Регионы", { reply_markup: await regionsKeyboard(ctx) });
 });
 
-function constructMenu(): Menu<BotContext> {
-  const weather_menu = new Menu<BotContext>("regions");
-  const regions_menus: Menu<BotContext>[] = [];
+bot.callbackQuery("weather:regions", async (ctx) => {
+  await ctx.editMessageText("Регионы", { reply_markup: await regionsKeyboard(ctx) });
+  await ctx.answerCallbackQuery();
+});
 
-  weather_menu.dynamic((ctx, range) => {
-    if (ctx.session.last_weather === undefined) return;
-    range.text(`${ctx.session.last_weather.name}, ${ctx.session.last_weather.alt}м`, async (ctx) => {
-      ctx.deleteMessage();
-      console.log(
-        `Weather, id: ${ctx.from?.id}, mountain: ${ctx.session.last_weather?.key}, alt: ${ctx.session.last_weather?.alt}`,
-      );
-      const tmp = await ctx.reply("прогнозируем...");
-      tmp.editText(
-        `<code>${ctx.session.last_weather?.name} | el. ${ctx.session.last_weather?.alt}\n${await forecastForMountain(
-          ctx.session.last_weather?.key!,
-          ctx.session.last_weather?.alt!,
-        )}</code>`,
-        {
-          parse_mode: "HTML",
-        },
-      );
-    }).row();
+bot.callbackQuery("weather:close", async (ctx) => {
+  await ctx.deleteMessage();
+  await ctx.answerCallbackQuery();
+});
+
+bot.callbackQuery("weather:last", async (ctx) => {
+  // ts-ignore TODO
+  const state = await ctx.state();
+  const last_weather = findUserState(state, ctx.from?.id)?.last_weather;
+  if (last_weather === undefined) {
+    await ctx.answerCallbackQuery("Нет последнего прогноза");
+    return;
+  }
+
+  await sendForecast(ctx, last_weather.key, last_weather.name, last_weather.alt);
+});
+
+bot.callbackQuery(/^weather:region:(.+)$/, async (ctx) => {
+  const key_region = decodeKey(ctx.match[1]);
+  const region = mountains[key_region as keyof typeof mountains];
+  if (region === undefined) {
+    await ctx.answerCallbackQuery("Регион не найден");
+    return;
+  }
+
+  await ctx.editMessageText(`Горы региона ${region.name}`, { reply_markup: mountainsKeyboard(key_region) });
+  await ctx.answerCallbackQuery();
+});
+
+bot.callbackQuery(/^weather:mountain:(.+)$/, async (ctx) => {
+  const key_mountain = decodeKey(ctx.match[1]);
+  const mountain = findMountain(key_mountain);
+  if (mountain === undefined) {
+    await ctx.answerCallbackQuery("Гора не найдена");
+    return;
+  }
+
+  await ctx.editMessageText(`Высоты горы ${mountain.name}`, {
+    reply_markup: altsKeyboard(key_mountain, mountain.value),
   });
+  await ctx.answerCallbackQuery();
+});
+
+bot.callbackQuery(/^weather:forecast:([^:]+):(\d+)$/, async (ctx) => {
+  const key_mountain = decodeKey(ctx.match[1]);
+  const alt = Number(ctx.match[2]);
+  const mountain = findMountain(key_mountain);
+  if (mountain === undefined) {
+    await ctx.answerCallbackQuery("Гора не найдена");
+    return;
+  }
+
+  await sendForecast(ctx, key_mountain, mountain.name, alt);
+});
+
+async function regionsKeyboard(ctx: BotContext): Promise<InlineKeyboard> {
+  const keyboard = createKeyboard();
+  const state = await ctx.state();
+  const last_weather = findUserState(state, ctx.from?.id)?.last_weather;
+
+  if (last_weather !== undefined) {
+    addButton(keyboard, `${last_weather.name}, ${last_weather.alt}м`, "weather:last");
+    addRow(keyboard);
+  }
 
   let i = 0;
   for (const [key_region, region] of Object.entries(mountains)) {
-    const region_menu = new Menu<BotContext>(`region_${key_region}`);
-    const mountain_menus: Menu<BotContext>[] = [];
-
-    let k = 0;
-    for (const [key_mountain, mountain] of Object.entries(region.value)) {
-      const mountain_menu = new Menu<BotContext>(`mountain_${key_mountain}`);
-
-      for (const [index, alt] of mountain.value.entries()) {
-        mountain_menu
-          .text(`${alt}м`, async (ctx) => {
-            try {
-              ctx.deleteMessage();
-              console.log(`Weather, id: ${ctx.from?.id}, mountain: ${key_mountain}, alt: ${alt}`);
-              const tmp = await ctx.reply("прогнозируем...");
-              await ctx.reply(
-                `<code>${mountain.name} | el. ${alt}\n${await forecastForMountain(key_mountain, alt)}</code>`,
-                {
-                  parse_mode: "HTML",
-                },
-              ).finally(() => tmp.delete());
-              ctx.session.last_weather = {
-                key: key_mountain,
-                name: mountain.name,
-                alt: alt,
-              };
-            } catch (err) {
-              console.error(err);
-              ctx.reply("ошибка...");
-            }
-          });
-
-        if (index % 2 !== 0 && index !== 0) {
-          mountain_menu.row();
-        }
-      }
-
-      addNav(mountain_menu);
-      mountain_menus.push(mountain_menu);
-      region_menu.submenu(
-        mountain.name,
-        `mountain_${key_mountain}`,
-        (ctx) => ctx.editMessageText(`Высоты горы ${mountain.name}`),
-      );
-      if (k % 2 !== 0 && k !== 0) {
-        region_menu.row();
-      }
-      k++;
-    }
-
-    addNav(region_menu);
-    region_menu.register(mountain_menus);
-    regions_menus.push(region_menu);
-    weather_menu.submenu(
-      region.name,
-      `region_${key_region}`,
-      (ctx) => ctx.editMessageText(`Горы региона ${region.name}`),
-    );
-    if (i % 2 !== 0 && i !== 0) {
-      weather_menu.row();
-    }
+    addButton(keyboard, region.name, `weather:region:${encodeKey(key_region)}`);
+    if (i % 2 !== 0) addRow(keyboard);
     i++;
   }
 
-  weather_menu.row();
-  weather_menu.text("🚫 закрыть", (ctx) => ctx.deleteMessage());
-  weather_menu.register(regions_menus);
-
-  return weather_menu;
+  addRow(keyboard);
+  addButton(keyboard, "🚫 закрыть", "weather:close");
+  return keyboard;
 }
 
-function addNav(menu: Menu<BotContext>): Menu<BotContext> {
-  return menu
-    .row()
-    .back("⬅️ назад", (ctx) => ctx.editMessageText(`Регионы`))
-    .back("🚫 закрыть", async (ctx) => {
-      await ctx.menu.close({ immediate: true });
-      ctx.deleteMessage();
-    });
+function mountainsKeyboard(key_region: string): InlineKeyboard {
+  const keyboard = createKeyboard();
+  const region = mountains[key_region as keyof typeof mountains];
+  if (region === undefined) return navKeyboard();
+
+  let i = 0;
+  for (const [key_mountain, mountain] of Object.entries(region.value)) {
+    addButton(keyboard, mountain.name, `weather:mountain:${encodeKey(key_mountain)}`);
+    if (i % 2 !== 0) addRow(keyboard);
+    i++;
+  }
+
+  return addNav(keyboard);
+}
+
+function altsKeyboard(key_mountain: string, alts: number[]): InlineKeyboard {
+  const keyboard = createKeyboard();
+
+  for (const [index, alt] of alts.entries()) {
+    addButton(keyboard, `${alt}м`, `weather:forecast:${encodeKey(key_mountain)}:${alt}`);
+    if (index % 2 !== 0) addRow(keyboard);
+  }
+
+  return addNav(keyboard);
+}
+
+function addNav(keyboard: InlineKeyboard): InlineKeyboard {
+  addRow(keyboard);
+  addButton(keyboard, "⬅️ назад", "weather:regions");
+  addButton(keyboard, "🚫 закрыть", "weather:close");
+  return keyboard;
+}
+
+function navKeyboard(): InlineKeyboard {
+  return addNav(createKeyboard());
+}
+
+async function sendForecast(ctx: BotContext, key: string, name: string, alt: number): Promise<void> {
+  try {
+    await ctx.deleteMessage();
+    console.log(`Weather, id: ${ctx.from?.id}, mountain: ${key}, alt: ${alt}`);
+    const tmp = await ctx.sendMessage("прогнозируем...");
+    await ctx
+      .sendMessage(`<code>${name} | el. ${alt}\n${await forecastForMountain(key, alt)}</code>`, {
+        parse_mode: "HTML",
+      })
+      .finally(() => ctx.api.deleteMessage(tmp.chat.id, tmp.message_id));
+
+    const state = await ctx.state();
+    const user_state = getUserState(state, ctx.from?.id);
+    if (user_state !== undefined) {
+      user_state.last_weather = { key, name, alt };
+      await flushState(state);
+    }
+    await ctx.answerCallbackQuery();
+  } catch (err) {
+    console.error(err);
+    await ctx.sendMessage("ошибка...");
+  }
+}
+
+function createKeyboard(): InlineKeyboard {
+  return { inline_keyboard: [[]] };
+}
+
+function addButton(keyboard: InlineKeyboard, text: string, callback_data: string): void {
+  keyboard.inline_keyboard.at(-1)?.push({ text, callback_data });
+}
+
+function addRow(keyboard: InlineKeyboard): void {
+  if (keyboard.inline_keyboard.at(-1)?.length === 0) return;
+  keyboard.inline_keyboard.push([]);
+}
+
+function findMountain(key_mountain: string): { name: string; value: number[] } | undefined {
+  for (const region of Object.values(mountains)) {
+    const mountain = region.value[key_mountain as keyof typeof region.value];
+    if (mountain !== undefined) return mountain;
+  }
+}
+
+function encodeKey(key: string): string {
+  return encodeURIComponent(key);
+}
+
+function decodeKey(key: string): string {
+  return decodeURIComponent(key);
 }
 
 async function forecastForMountain(mountain: string, alt: number): Promise<string> {
@@ -168,9 +241,7 @@ function parseHtml(html: string): WeatherData[] {
   const wind_speed = dom.querySelectorAll("tr.forecast-table__row div.forecast-table__container--wind text");
   const snow = dom.querySelectorAll("tr.forecast-table__row div.snow-amount span");
   const rain = dom.querySelectorAll("tr.forecast-table__row div.rain-amount span");
-  const summary = dom.querySelectorAll(
-    "tr.forecast-table__row span.forecast-table__phrase",
-  );
+  const summary = dom.querySelectorAll("tr.forecast-table__row span.forecast-table__phrase");
 
   for (let i = 0; i < time.length; i++) {
     const snow_temp = Number(snow.item(i)?.textContent.trim());
