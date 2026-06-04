@@ -23,13 +23,13 @@ export function getState(): Promise<State> {
 
 async function loadState(): Promise<State> {
   db ??= await Deno.openKv(Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined ? undefined : "kv.db");
-  const state = (await db.get<typeof default_state>(["state"])).value ?? default_state;
+  const state = (await db.get<typeof default_state>(["callmebuddy_state"])).value ?? default_state;
 
   return proxify(state, async () => {
     if (state[MUTATED]) {
       console.debug("saving state");
       state[MUTATED] = false;
-      await db?.set(["state"], state);
+      await db?.set(["callmebuddy_state"], state);
     }
   });
 }

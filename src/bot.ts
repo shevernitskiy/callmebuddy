@@ -3,15 +3,15 @@ import { Bot, Context, GrammyError, HttpError } from "@grammyjs/grammy";
 import { CommandFeedback } from "./command/feedback.ts";
 import { CommandCams } from "./command/cams.ts";
 import { CommandWeather } from "./command/weather.ts";
-import { getState, type State } from "./state.ts";
+// import { getState, type State } from "./state.ts";
 
 console.log("Start bot...");
 
-type StateFlavor = {
-  state: () => Promise<State>;
-};
+// type StateFlavor = {
+//   state: () => Promise<State>;
+// };
 
-export type BotContext = Context & StateFlavor;
+export type BotContext = Context;
 
 function getToken(): string {
   const token = Deno.env.get("TOKEN") ?? readTokenFromDotEnv();
@@ -23,7 +23,12 @@ function readTokenFromDotEnv(): string | undefined {
   try {
     const env = Deno.readTextFileSync(".env");
     const line = env.split(/\r?\n/).find((item) => item.trim().startsWith("TOKEN="));
-    return line?.split("=").slice(1).join("=").trim().replace(/^["']|["']$/g, "");
+    return line
+      ?.split("=")
+      .slice(1)
+      .join("=")
+      .trim()
+      .replace(/^["']|["']$/g, "");
   } catch {
     return undefined;
   }
@@ -31,10 +36,10 @@ function readTokenFromDotEnv(): string | undefined {
 
 export const bot = new Bot<BotContext>(getToken());
 
-bot.use(async (ctx, next) => {
-  ctx.state = getState;
-  await next();
-});
+// bot.use(async (ctx, next) => {
+//   ctx.state = getState;
+//   await next();
+// });
 
 bot.use(CommandFeedback);
 bot.use(CommandCams);
