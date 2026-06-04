@@ -2,7 +2,7 @@ import { Composer } from "@grammyjs/grammy";
 import { DOMParser, Element } from "@b-fuze/deno-dom";
 
 import { BotContext } from "../bot.ts";
-import { findUserState, flushState, getUserState } from "../state.ts";
+import { getState, findUserState, getUserState } from "../state.ts";
 
 import mountains from "../data/mountains.json" with { type: "json" };
 
@@ -33,74 +33,93 @@ bot.command("weather", async (ctx) => {
 });
 
 bot.callbackQuery("weather:regions", async (ctx) => {
-  await ctx.editMessageText("Регионы", { reply_markup: await regionsKeyboard(ctx) });
   await ctx.answerCallbackQuery();
+  await ctx.editMessageText("Регионы", { reply_markup: await regionsKeyboard(ctx) });
 });
 
 bot.callbackQuery("weather:close", async (ctx) => {
-  await ctx.deleteMessage();
   await ctx.answerCallbackQuery();
+  await ctx.deleteMessage();
 });
 
-bot.callbackQuery("weather:last", async (ctx) => {
-  // ts-ignore TODO
-  const state = await ctx.state();
-  const last_weather = findUserState(state, ctx.from?.id)?.last_weather;
-  if (last_weather === undefined) {
-    await ctx.answerCallbackQuery("Нет последнего прогноза");
+// Клик по сохраненной горе (стейт не трогаем вообще)
+bot.callbackQuery(/^weather:last:([^:]+):(\d+)$/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+
+  const key_mountain = decodeKey(ctx.match[1]);
+  const alt = Number(ctx.match[2]);
+  const mountain = findMountain(key_mountain);
+
+  if (mountain === undefined) {
+    await ctx.sendMessage("Гора не найдена");
     return;
   }
 
-  await sendForecast(ctx, last_weather.key, last_weather.name, last_weather.alt);
-
-  // await ctx.answerCallbackQuery("Нет последнего прогноза");
+  // false означает, что нам не нужно перезаписывать state
+  await sendForecast(ctx, key_mountain, mountain.name, alt, false);
 });
 
 bot.callbackQuery(/^weather:region:(.+)$/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+
   const key_region = decodeKey(ctx.match[1]);
   const region = mountains[key_region as keyof typeof mountains];
+
   if (region === undefined) {
-    await ctx.answerCallbackQuery("Регион не найден");
+    await ctx.sendMessage("Регион не найден");
     return;
   }
 
   await ctx.editMessageText(`Горы региона ${region.name}`, { reply_markup: mountainsKeyboard(key_region) });
-  await ctx.answerCallbackQuery();
 });
 
 bot.callbackQuery(/^weather:mountain:(.+)$/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+
   const key_mountain = decodeKey(ctx.match[1]);
   const mountain = findMountain(key_mountain);
+
   if (mountain === undefined) {
-    await ctx.answerCallbackQuery("Гора не найдена");
+    await ctx.sendMessage("Гора не найдена");
     return;
   }
 
   await ctx.editMessageText(`Высоты горы ${mountain.name}`, {
     reply_markup: altsKeyboard(key_mountain, mountain.value),
   });
-  await ctx.answerCallbackQuery();
 });
 
+// Клик по новой горе из меню (обновляем стейт)
 bot.callbackQuery(/^weather:forecast:([^:]+):(\d+)$/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+
   const key_mountain = decodeKey(ctx.match[1]);
   const alt = Number(ctx.match[2]);
   const mountain = findMountain(key_mountain);
+
   if (mountain === undefined) {
-    await ctx.answerCallbackQuery("Гора не найдена");
+    await ctx.sendMessage("Гора не найдена");
     return;
   }
 
-  await sendForecast(ctx, key_mountain, mountain.name, alt);
+  // true означает, что нужно обновить last_weather в state
+  await sendForecast(ctx, key_mountain, mountain.name, alt, true);
 });
 
 async function regionsKeyboard(ctx: BotContext): Promise<InlineKeyboard> {
   const keyboard = createKeyboard();
-  const state = await ctx.state();
+
+  // Здесь мы читаем стейт 1 раз при построении меню
+  await using state = await getState();
   const last_weather = findUserState(state, ctx.from?.id)?.last_weather;
 
   if (last_weather !== undefined) {
-    addButton(keyboard, `${last_weather.name}, ${last_weather.alt}м`, "weather:last");
+    // Зашиваем данные прямо в кнопку, чтобы не читать стейт при клике
+    addButton(
+      keyboard,
+      `♻️ ${last_weather.name}, ${last_weather.alt}м`,
+      `weather:last:${encodeKey(last_weather.key)}:${last_weather.alt}`,
+    );
     addRow(keyboard);
   }
 
@@ -153,24 +172,40 @@ function navKeyboard(): InlineKeyboard {
   return addNav(createKeyboard());
 }
 
-async function sendForecast(ctx: BotContext, key: string, name: string, alt: number): Promise<void> {
+async function sendForecast(
+  ctx: BotContext,
+  key: string,
+  name: string,
+  alt: number,
+  updateState: boolean,
+): Promise<void> {
   try {
-    await ctx.deleteMessage();
+    await ctx.deleteMessage(); // Удаляем клавиатуру
     console.log(`Weather, id: ${ctx.from?.id}, mountain: ${key}, alt: ${alt}`);
-    const tmp = await ctx.sendMessage("прогнозируем...");
-    await ctx
-      .sendMessage(`<code>${name} | el. ${alt}\n${await forecastForMountain(key, alt)}</code>`, {
-        parse_mode: "HTML",
-      })
-      .finally(() => ctx.api.deleteMessage(tmp.chat.id, tmp.message_id));
 
-    const state = await ctx.state();
-    const user_state = getUserState(state, ctx.from?.id);
-    if (user_state !== undefined) {
-      user_state.last_weather = { key, name, alt };
-      await flushState(state);
+    const tmp = await ctx.sendMessage("прогнозируем...");
+
+    try {
+      const forecastData = await forecastForMountain(key, alt);
+      await ctx.sendMessage(`<code>${name} | el. ${alt}\n${forecastData}</code>`, {
+        parse_mode: "HTML",
+      });
+    } finally {
+      // Гарантированно удаляем сообщение "прогнозируем..."
+      await ctx.api.deleteMessage(tmp.chat.id, tmp.message_id).catch(() => {});
     }
-    await ctx.answerCallbackQuery();
+
+    if (updateState) {
+      await using state = await getState();
+      const user_state = getUserState(state, ctx.from?.id);
+
+      // Защита от холостой перезаписи (экономит Write operation)
+      const isSame = user_state?.last_weather?.key === key && user_state?.last_weather?.alt === alt;
+
+      if (user_state !== undefined && !isSame) {
+        user_state.last_weather = { key, name, alt };
+      }
+    }
   } catch (err) {
     console.error(err);
     await ctx.sendMessage("ошибка...");

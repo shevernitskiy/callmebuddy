@@ -14,21 +14,14 @@ const default_state = {
   [MUTATED]: true,
 };
 
-let state_promise: Promise<State> | undefined;
-
 export type State = Mutatable<typeof default_state>;
 
-export function getState(): Promise<State> {
-  state_promise ??= loadState();
-  return state_promise;
-}
+const redis = new Redis({
+  url: Deno.env.get("UPSTASH_REDIS_REST_URL")!,
+  token: Deno.env.get("UPSTASH_REDIS_REST_TOKEN")!,
+});
 
-async function loadState(): Promise<State> {
-  const redis = new Redis({
-    url: Deno.env.get("UPSTASH_REDIS_REST_URL")!,
-    token: Deno.env.get("UPSTASH_REDIS_REST_TOKEN")!,
-  });
-
+export async function getState(): Promise<State> {
   const fetchedState = await redis.get<typeof default_state>(UNIQUE_KEY);
   const state = fetchedState ?? default_state;
 
@@ -39,10 +32,6 @@ async function loadState(): Promise<State> {
       await redis.set(UNIQUE_KEY, state);
     }
   });
-}
-
-export async function flushState(state: State): Promise<void> {
-  await state[Symbol.asyncDispose]?.();
 }
 
 export function findUserState(state: State, user_id: number | undefined) {
